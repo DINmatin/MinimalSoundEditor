@@ -52,6 +52,7 @@ namespace MinimalSoundEditor
             };
             _overviewView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
             _overviewView.SelectionChanged += OverviewView_SelectionChanged;
+            _overviewView.MouseDoubleClick += OverviewView_MouseDoubleClick;
 
             var overviewPanel = new Panel
             {
@@ -197,6 +198,16 @@ namespace MinimalSoundEditor
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+        private void OverviewView_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            // Ganze Datei markieren
+            _overviewView.SetSelection(0, _currentSamples.Length, raiseEvent: true);
+            // SelectionChanged-Event kümmert sich darum,
+            // dass der Detail-View entsprechend gezoomt wird.
         }
 
         private void MainForm_Resize(object sender, EventArgs e)

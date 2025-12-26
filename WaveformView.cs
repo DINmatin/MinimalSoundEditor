@@ -8,26 +8,40 @@ namespace MinimalSoundEditor
     {
         private float[] _samples = Array.Empty<float>(); // nie null
         private float _zoom = 1.0f; // vertikaler Zoom
-        private bool _isMouseDown;
+
         private int? _selectionStartSample;
         private int? _selectionEndSample;
 
         private int _playbackSample; // aktueller Playhead (Sampleindex)
 
-        // Sichtbarer Ausschnitt (horizontal):
-        // 0 / <=0 = ganzer Track
+        // Sichtbarer Ausschnitt (horizontal)
         private int _visibleStartSample = 0;
-        private int _visibleSampleCount = 0;
+        private int _visibleSampleCount = 0; // <=0 = ganzer Track
+
+        // Dragging / Selection
+        private bool _isMouseDown;
+        private DragMode _dragMode = DragMode.None;
+        private const int EdgeHitPixels = 6; // Klick-Toleranz an Selektionskanten
+
+        private bool _isHoveringEdge = false;
+
+        private enum DragMode
+        {
+            None,
+            NewSelection,
+            ResizeLeft,
+            ResizeRight
+        }
 
         /// <summary>
         /// Wird ausgelöst, wenn der Benutzer per Klick den Playhead verschiebt.
-        /// Übergibt den Sampleindex (global, bezogen auf _samples).
+        /// Übergibt den Sampleindex (global).
         /// </summary>
         public event Action<int> PlaybackPositionChangedByClick;
 
         /// <summary>
-        /// Wird ausgelöst, wenn mit der Maus eine Auswahl gemacht wurde (MouseUp).
-        /// Übergibt Start/Ende (global, bezogen auf _samples).
+        /// Wird ausgelöst, wenn nach einer Auswahl (MouseUp oder SetSelection) 
+        /// eine gültige Selektion vorliegt. Übergibt Start/Ende (global).
         /// </summary>
         public event Action<int, int> SelectionChanged;
 
@@ -41,6 +55,10 @@ namespace MinimalSoundEditor
             BackColor = Color.Black;
         }
 
+        // --------------------------------------------------------------------
+        // Public Properties
+        // --------------------------------------------------------------------
+
         /// <summary>
         /// Mono-Samples im Bereich [-1, 1]
         /// </summary>
@@ -53,7 +71,7 @@ namespace MinimalSoundEditor
                 ClearSelection();
                 _playbackSample = 0;
                 _visibleStartSample = 0;
-                _visibleSampleCount = 0; // 0 = ganzer Track
+                _visibleSampleCount = 0; // ganzer Track
                 Invalidate();
             }
         }
@@ -126,6 +144,10 @@ namespace MinimalSoundEditor
             _selectionStartSample.HasValue &&
             _selectionEndSample.HasValue &&
             _selectionStartSample.Value != _selectionEndSample.Value;
+
+        // --------------------------------------------------------------------
+        // Rendering
+        // --------------------------------------------------------------------
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -213,7 +235,6 @@ namespace MinimalSoundEditor
                 int selStart = sel.start;
                 int selEnd = sel.end;
 
-                // In sichtbares Fenster schneiden
                 int windowStart = viewStart;
                 int windowEnd = viewStart + viewCount;
 
@@ -234,6 +255,11 @@ namespace MinimalSoundEditor
 
                     using var brush = new SolidBrush(Color.FromArgb(80, Color.Yellow));
                     g.FillRectangle(brush, x1, 0, x2 - x1, height);
+
+                    // Kanten leicht hervorheben
+                    using var edgePen = new Pen(Color.Gold, 2);
+                    g.DrawLine(edgePen, x1, 0, x1, height);
+                    g.DrawLine(edgePen, x2, 0, x2, height);
                 }
             }
 
@@ -253,6 +279,10 @@ namespace MinimalSoundEditor
                 }
             }
         }
+
+        // --------------------------------------------------------------------
+        // Helper: Selektion & Mapping
+        // --------------------------------------------------------------------
 
         private (int start, int end) GetNormalizedSelection(int totalSamples)
         {
@@ -299,13 +329,91 @@ namespace MinimalSoundEditor
             return sampleIndex;
         }
 
+        private int SampleToX(int sampleIndex)
+        {
+            int width = ClientSize.Width;
+            int totalSamples = _samples?.Length ?? 0;
+
+            if (width <= 1 || totalSamples == 0)
+                return 0;
+
+            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
+            int maxCount = totalSamples - viewStart;
+            int viewCount = _visibleSampleCount > 0
+                ? Math.Min(_visibleSampleCount, maxCount)
+                : maxCount;
+
+            if (viewCount <= 0)
+                return 0;
+
+            int local = sampleIndex - viewStart;
+            if (local < 0) local = 0;
+            if (local > viewCount) local = viewCount;
+
+            int x = (int)(local * (width - 1) / (float)viewCount);
+            return x;
+        }
+
+        // --------------------------------------------------------------------
+        // Maus-Interaktion
+        // --------------------------------------------------------------------
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            Cursor = Cursors.Default;
+            _isHoveringEdge = false;
+        }
+
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
             if (_samples == null || _samples.Length == 0) return;
 
             _isMouseDown = true;
+            int totalSamples = _samples.Length;
+
+            // Klick-Sample
             int idx = XToSampleIndex(e.X);
+
+            // Prüfen, ob wir eine Selektion haben und ob wir an einer Kante klicken
+            if (HasSelection)
+            {
+                var sel = GetNormalizedSelection(totalSamples);
+                int selStart = sel.start;
+                int selEnd = sel.end;
+
+                int xLeft = SampleToX(selStart);
+                int xRight = SampleToX(selEnd);
+
+                var dxLeft = Math.Abs(e.X - xLeft);
+                var dxRight = Math.Abs(e.X - xRight);
+
+                bool nearLeft = dxLeft <= EdgeHitPixels;
+                bool nearRight = dxRight <= EdgeHitPixels;
+
+                if (nearLeft && !nearRight)
+                {
+                    _dragMode = DragMode.ResizeLeft;
+                    Cursor = Cursors.SizeWE;           // ⚡ Resize-Cursor setzen
+                    return;
+                }
+                if (nearRight && !nearLeft)
+                {
+                    _dragMode = DragMode.ResizeRight;
+                    Cursor = Cursors.SizeWE;           // ⚡ Resize-Cursor setzen
+                    return;
+                }
+                if (nearLeft && nearRight)
+                {
+                    // extrem schmale Auswahl: nimm z.B. rechts
+                    _dragMode = DragMode.ResizeRight;
+                    Cursor = Cursors.SizeWE;           // ⚡ Resize-Cursor setzen
+                    return;
+                }
+            }
+
+            // Sonst: neue Selektion beginnen
+            _dragMode = DragMode.NewSelection;
 
             _selectionStartSample = idx;
             _selectionEndSample = idx;
@@ -319,9 +427,78 @@ namespace MinimalSoundEditor
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            if (!_isMouseDown || _samples == null || _samples.Length == 0) return;
 
-            _selectionEndSample = XToSampleIndex(e.X);
+            if (_samples == null || _samples.Length == 0)
+            {
+                Cursor = Cursors.Default;
+                _isHoveringEdge = false;
+                return;
+            }
+
+            int totalSamples = _samples.Length;
+
+            // -------- HOVER-LOGIK FÜR KANTEN (wenn keine Maustaste gedrückt) --------
+            if (!_isMouseDown && HasSelection)
+            {
+                var sel = GetNormalizedSelection(totalSamples);
+                int selStart = sel.start;
+                int selEnd = sel.end;
+
+                int xLeft = SampleToX(selStart);
+                int xRight = SampleToX(selEnd);
+
+                var dxLeft = Math.Abs(e.X - xLeft);
+                var dxRight = Math.Abs(e.X - xRight);
+
+                bool nearLeft = dxLeft <= EdgeHitPixels;
+                bool nearRight = dxRight <= EdgeHitPixels;
+
+                if (nearLeft || nearRight)
+                {
+                    Cursor = Cursors.SizeWE;       // ⚡ über Kante -> Resize-Cursor
+                    _isHoveringEdge = true;
+                }
+                else if (_isHoveringEdge)
+                {
+                    Cursor = Cursors.Default;      // weg von der Kante -> Normal
+                    _isHoveringEdge = false;
+                }
+            }
+
+            // -------- DRAGGEN (nur wenn Maus gedrückt) --------
+            if (!_isMouseDown || _dragMode == DragMode.None)
+                return;
+
+            int idx = XToSampleIndex(e.X);
+
+            switch (_dragMode)
+            {
+                case DragMode.NewSelection:
+                    _selectionEndSample = idx;
+                    break;
+
+                case DragMode.ResizeLeft:
+                    {
+                        int end = _selectionEndSample ?? idx;
+                        _selectionStartSample = idx;
+                        // Start darf nicht rechts von End liegen
+                        var sel = GetNormalizedSelection(totalSamples);
+                        _selectionStartSample = sel.start;
+                        _selectionEndSample = sel.end;
+                        break;
+                    }
+
+                case DragMode.ResizeRight:
+                    {
+                        int start = _selectionStartSample ?? idx;
+                        _selectionEndSample = idx;
+                        var sel = GetNormalizedSelection(totalSamples);
+                        _selectionStartSample = sel.start;
+                        _selectionEndSample = sel.end;
+                        break;
+                    }
+            }
+
             Invalidate();
         }
 
@@ -331,14 +508,42 @@ namespace MinimalSoundEditor
             _isMouseDown = false;
 
             if (_samples == null || _samples.Length == 0)
-                return;
-
-            if (HasSelection)
             {
-                var sel = GetNormalizedSelection(_samples.Length);
-                SelectionChanged?.Invoke(sel.start, sel.end);
+                _dragMode = DragMode.None;
+                Cursor = Cursors.Default;
+                _isHoveringEdge = false;
+                return;
             }
+
+            if (_selectionStartSample.HasValue && _selectionEndSample.HasValue)
+            {
+                // 🔁 Selektion einmal „in Stein meißeln“: start <= end
+                var sel = GetNormalizedSelection(_samples.Length);
+                _selectionStartSample = sel.start;
+                _selectionEndSample = sel.end;
+
+                if (sel.start != sel.end)
+                {
+                    // Nur wenn echte Länge vorhanden ist, Event auslösen
+                    SelectionChanged?.Invoke(sel.start, sel.end);
+                }
+                else
+                {
+                    // Nichts ausgewählt → Selektion löschen
+                    ClearSelection();
+                }
+            }
+
+            _dragMode = DragMode.None;
+            Cursor = Cursors.Default;
+            _isHoveringEdge = false;
         }
+
+
+
+        // --------------------------------------------------------------------
+        // Public API für Selektion
+        // --------------------------------------------------------------------
 
         public void ClearSelection()
         {
@@ -347,6 +552,44 @@ namespace MinimalSoundEditor
             Invalidate();
         }
 
+        /// <summary>
+        /// Setzt eine Selektion programmatisch (globale Sampleindices).
+        /// Optional kann SelectionChanged ausgelöst werden.
+        /// </summary>
+        public void SetSelection(int startSample, int endSample, bool raiseEvent = true)
+        {
+            int total = _samples?.Length ?? 0;
+            if (total <= 0)
+            {
+                ClearSelection();
+                return;
+            }
+
+            if (endSample < startSample)
+            {
+                int tmp = startSample;
+                startSample = endSample;
+                endSample = tmp;
+            }
+
+            startSample = Math.Max(0, Math.Min(startSample, total));
+            endSample = Math.Max(0, Math.Min(endSample, total));
+
+            _selectionStartSample = startSample;
+            _selectionEndSample = endSample;
+
+            Invalidate();
+
+            if (raiseEvent && HasSelection)
+            {
+                var sel = GetNormalizedSelection(total);
+                SelectionChanged?.Invoke(sel.start, sel.end);
+            }
+        }
+
+        /// <summary>
+        /// Schneidet die aktuelle Auswahl aus dem Sample-Puffer.
+        /// </summary>
         public void DeleteSelection()
         {
             if (_samples == null || _samples.Length == 0 || !HasSelection)
