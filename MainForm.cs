@@ -1,7 +1,8 @@
+using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
-using NAudio.Wave;
+using static MinimalSoundEditor.MainForm;
 
 namespace MinimalSoundEditor
 {
@@ -23,7 +24,7 @@ namespace MinimalSoundEditor
 
         // Playback
         private WaveOutEvent _waveOut;
-        private SimpleArraySampleProvider _currentProvider;
+        private IPositionedSampleProvider _currentProvider;
         private System.Windows.Forms.Timer _playbackTimer;
         private int _playbackSamplePosition; // aktueller Sampleindex
         private double _trackDurationSeconds; // Gesamtdauer
@@ -31,6 +32,12 @@ namespace MinimalSoundEditor
 
         // Undo
         private Stack<float[]> _undoStack = new Stack<float[]>();
+
+        // Loop
+        private CheckBox _chkLoop;
+        private bool _loopEnabled = false;
+        private int? _loopStartSample;
+        private int? _loopEndSample;
 
         public MainForm()
         {
@@ -53,6 +60,7 @@ namespace MinimalSoundEditor
             _overviewView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
             _overviewView.SelectionChanged += OverviewView_SelectionChanged;
             _overviewView.MouseDoubleClick += OverviewView_MouseDoubleClick;
+            
 
             var overviewPanel = new Panel
             {
@@ -68,6 +76,7 @@ namespace MinimalSoundEditor
                 Zoom = 1.0f
             };
             _detailView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
+            _detailView.SelectionChanged += DetailView_SelectionChanged;
             // SelectionChanged vom Detail verwenden wir für Editing (DeleteSelection), aber
             // nicht zum Zoomen – deshalb hier kein Handler.
 
@@ -133,6 +142,20 @@ namespace MinimalSoundEditor
             };
             _btnStop.Click += BtnStop_Click;
 
+            _chkLoop = new CheckBox
+            {
+                Appearance = Appearance.Button,
+                Text = "Loop",
+                Width = 70,
+                Left = 580,
+                Top = 10,
+                TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+            };
+            _chkLoop.CheckedChanged += (s, e) =>
+            {
+                _loopEnabled = _chkLoop.Checked;
+            };
+
             _lblInfo = new Label
             {
                 Text = "Keine Datei geladen",
@@ -155,6 +178,7 @@ namespace MinimalSoundEditor
                 _btnDeleteSelection,
                 _btnPlay,
                 _btnStop,
+                _chkLoop,
                 _lblInfo
             });
 
@@ -171,6 +195,34 @@ namespace MinimalSoundEditor
 
             FormClosing += MainForm_FormClosing;
             Resize += MainForm_Resize;
+        }
+        private void OverviewView_SelectionChanged(int startSample, int endSample)
+        {
+            if (endSample <= startSample)
+                return;
+
+            int length = endSample - startSample;
+
+            // Zoom im Detail: wie vorher
+            _detailView.VisibleStartSample = startSample;
+            _detailView.VisibleSampleCount = length;
+
+            // Loop-Bereich setzen
+            _loopStartSample = startSample;
+            _loopEndSample = endSample;
+        }
+
+        private void DetailView_SelectionChanged(int startSample, int endSample)
+        {
+            if (endSample <= startSample)
+            {
+                _loopStartSample = null;
+                _loopEndSample = null;
+                return;
+            }
+
+            _loopStartSample = startSample;
+            _loopEndSample = endSample;
         }
 
         // Tastatur-Shortcuts
@@ -197,8 +249,20 @@ namespace MinimalSoundEditor
                 return true;
             }
 
+            // L -> Loop Toggle
+            if (keyData == Keys.L)
+            {
+                _chkLoop.Checked = !_chkLoop.Checked;
+                return true;
+            }
+
             return base.ProcessCmdKey(ref msg, keyData);
         }
+        public interface IPositionedSampleProvider : ISampleProvider
+        {
+            int PositionSamples { get; }
+        }
+
         private void OverviewView_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -364,6 +428,11 @@ namespace MinimalSoundEditor
             // Nur im Detail-Track löschen
             _detailView.DeleteSelection();
 
+            // Loop-Bereich ungültig, weil sich die Samples verschoben haben
+            _loopStartSample = null;
+            _loopEndSample = null;
+            _chkLoop.Checked = false;
+
             // Samples aus Detail-View übernehmen
             _currentSamples = _detailView.Samples ?? Array.Empty<float>();
             _overviewView.Samples = _currentSamples;
@@ -415,6 +484,10 @@ namespace MinimalSoundEditor
 
             UpdateInfo(_currentSampleRate, _currentSamples.Length);
             UpdatePlaybackTimerInterval();
+
+            _loopStartSample = null;
+            _loopEndSample = null;
+            _chkLoop.Checked = false;
         }
 
         // PLAY
@@ -437,17 +510,44 @@ namespace MinimalSoundEditor
 
             _waveOut = new WaveOutEvent();
 
-            _currentProvider = new SimpleArraySampleProvider(
-                _currentSamples,
-                _currentSampleRate,
-                1,
-                _playbackSamplePosition);
+            // Prüfen, ob wir loop-fähig sind
+            bool hasLoopSelection =
+                _loopEnabled &&
+                _loopStartSample.HasValue &&
+                _loopEndSample.HasValue &&
+                _loopEndSample.Value > _loopStartSample.Value;
+
+            if (hasLoopSelection)
+            {
+                // Loop von Selektion
+                _currentProvider = new LoopingArraySampleProvider(
+                    _currentSamples,
+                    _currentSampleRate,
+                    1,
+                    _loopStartSample.Value,
+                    _loopEndSample.Value);
+
+                // Playhead am Loop-Anfang
+                _playbackSamplePosition = _loopStartSample.Value;
+                _overviewView.PlaybackSample = _playbackSamplePosition;
+                _detailView.PlaybackSample = _playbackSamplePosition;
+            }
+            else
+            {
+                // normales Playback ab aktuellem Playhead
+                _currentProvider = new SimpleArraySampleProvider(
+                    _currentSamples,
+                    _currentSampleRate,
+                    1,
+                    _playbackSamplePosition);
+            }
 
             _waveOut.Init(_currentProvider);
             _waveOut.PlaybackStopped += WaveOut_PlaybackStopped;
             _waveOut.Play();
 
             _playbackTimer?.Start();
+
         }
 
         private void WaveOut_PlaybackStopped(object sender, StoppedEventArgs e)
@@ -524,23 +624,13 @@ namespace MinimalSoundEditor
             _detailView.PlaybackSample = sampleIndex;
         }
 
-        // Overview-Auswahl -> Zoom im Detail
-        private void OverviewView_SelectionChanged(int startSample, int endSample)
-        {
-            if (endSample <= startSample)
-                return;
-
-            int length = endSample - startSample;
-
-            _detailView.VisibleStartSample = startSample;
-            _detailView.VisibleSampleCount = length;
-        }
+       
     }
 
     /// <summary>
     /// Einfacher SampleProvider für float[]-Buffer, mit Startposition und Positionsabfrage.
     /// </summary>
-    public class SimpleArraySampleProvider : ISampleProvider
+    public class SimpleArraySampleProvider : IPositionedSampleProvider
     {
         private readonly float[] _buffer;
         private int _position;
@@ -576,4 +666,68 @@ namespace MinimalSoundEditor
             return toCopy;
         }
     }
+
+    public class LoopingArraySampleProvider : IPositionedSampleProvider
+    {
+        private readonly float[] _buffer;
+        private readonly int _loopStart;
+        private readonly int _loopEnd; // exklusiv
+        private int _position;
+
+        public LoopingArraySampleProvider(float[] buffer, int sampleRate, int channels, int loopStartSample, int loopEndSample)
+        {
+            _buffer = buffer ?? Array.Empty<float>();
+
+            int total = _buffer.Length;
+            loopStartSample = Math.Max(0, Math.Min(loopStartSample, total));
+            loopEndSample = Math.Max(0, Math.Min(loopEndSample, total));
+
+            if (loopEndSample <= loopStartSample)
+            {
+                loopStartSample = 0;
+                loopEndSample = total;
+            }
+
+            _loopStart = loopStartSample;
+            _loopEnd = loopEndSample;
+
+            _position = _loopStart;
+
+            WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
+        }
+
+        public WaveFormat WaveFormat { get; }
+
+        public int PositionSamples => _position;
+
+        public int Read(float[] destBuffer, int offset, int count)
+        {
+            if (_buffer.Length == 0 || _loopEnd <= _loopStart)
+                return 0;
+
+            int written = 0;
+
+            while (written < count)
+            {
+                if (_position >= _loopEnd)
+                {
+                    _position = _loopStart; // 🔁 Zurück zum Loop-Anfang
+                }
+
+                int samplesUntilLoopEnd = _loopEnd - _position;
+                int samplesToWrite = Math.Min(samplesUntilLoopEnd, count - written);
+
+                for (int n = 0; n < samplesToWrite; n++)
+                {
+                    destBuffer[offset + written + n] = _buffer[_position + n];
+                }
+
+                _position += samplesToWrite;
+                written += samplesToWrite;
+            }
+
+            return written;
+        }
+    }
+
 }
