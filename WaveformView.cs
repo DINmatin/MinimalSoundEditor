@@ -138,6 +138,25 @@ namespace MinimalSoundEditor
                 Invalidate();
             }
         }
+        // Öffentliche Abfrage, ob aktuell eine Selektion existiert
+        public bool HasActiveSelection => HasSelection;
+
+        // Gibt die aktuelle (normalisierte) Selektion zurück.
+        // Rückgabewert: true = es gibt eine Selektion, false = keine.
+        public bool TryGetSelection(out int startSample, out int endSample)
+        {
+            if (!HasSelection)
+            {
+                startSample = 0;
+                endSample = 0;
+                return false;
+            }
+
+            var sel = GetNormalizedSelection(_samples.Length);
+            startSample = sel.start;
+            endSample = sel.end;
+            return true;
+        }
 
         private bool HasSelection =>
             _samples.Length > 0 &&

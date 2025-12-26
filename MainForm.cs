@@ -36,8 +36,6 @@ namespace MinimalSoundEditor
         // Loop
         private CheckBox _chkLoop;
         private bool _loopEnabled = false;
-        private int? _loopStartSample;
-        private int? _loopEndSample;
 
         public MainForm()
         {
@@ -207,23 +205,18 @@ namespace MinimalSoundEditor
             _detailView.VisibleStartSample = startSample;
             _detailView.VisibleSampleCount = length;
 
-            // Loop-Bereich setzen
-            _loopStartSample = startSample;
-            _loopEndSample = endSample;
+            // Loop-Bereich merken wir NICHT mehr hier,
+            // sondern fragen später direkt bei den Views nach.
         }
+
 
         private void DetailView_SelectionChanged(int startSample, int endSample)
         {
-            if (endSample <= startSample)
-            {
-                _loopStartSample = null;
-                _loopEndSample = null;
-                return;
-            }
-
-            _loopStartSample = startSample;
-            _loopEndSample = endSample;
+            // Hier musst du eigentlich nichts mehr tun,
+            // außer evtl. später UI-Info updaten.
+            // Loop-Bereich wird direkt aus der aktuellen Selektion gelesen.
         }
+
 
         // Tastatur-Shortcuts
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -429,8 +422,6 @@ namespace MinimalSoundEditor
             _detailView.DeleteSelection();
 
             // Loop-Bereich ungültig, weil sich die Samples verschoben haben
-            _loopStartSample = null;
-            _loopEndSample = null;
             _chkLoop.Checked = false;
 
             // Samples aus Detail-View übernehmen
@@ -485,8 +476,6 @@ namespace MinimalSoundEditor
             UpdateInfo(_currentSampleRate, _currentSamples.Length);
             UpdatePlaybackTimerInterval();
 
-            _loopStartSample = null;
-            _loopEndSample = null;
             _chkLoop.Checked = false;
         }
 
@@ -511,24 +500,40 @@ namespace MinimalSoundEditor
             _waveOut = new WaveOutEvent();
 
             // Prüfen, ob wir loop-fähig sind
-            bool hasLoopSelection =
-                _loopEnabled &&
-                _loopStartSample.HasValue &&
-                _loopEndSample.HasValue &&
-                _loopEndSample.Value > _loopStartSample.Value;
+            bool hasLoopSelection = false;
+            int loopStart = 0;
+            int loopEnd = 0;
+
+            if (_loopEnabled)
+            {
+                // 1) bevorzugt: Selektion im Detail-Track
+                if (_detailView.TryGetSelection(out var ds, out var de) && de > ds)
+                {
+                    hasLoopSelection = true;
+                    loopStart = ds;
+                    loopEnd = de;
+                }
+                // 2) falls dort nichts: Selektion im Overview-Track
+                else if (_overviewView.TryGetSelection(out var os, out var oe) && oe > os)
+                {
+                    hasLoopSelection = true;
+                    loopStart = os;
+                    loopEnd = oe;
+                }
+            }
 
             if (hasLoopSelection)
             {
-                // Loop von Selektion
+                // Loop von aktueller Selektion
                 _currentProvider = new LoopingArraySampleProvider(
                     _currentSamples,
                     _currentSampleRate,
                     1,
-                    _loopStartSample.Value,
-                    _loopEndSample.Value);
+                    loopStart,
+                    loopEnd);
 
                 // Playhead am Loop-Anfang
-                _playbackSamplePosition = _loopStartSample.Value;
+                _playbackSamplePosition = loopStart;
                 _overviewView.PlaybackSample = _playbackSamplePosition;
                 _detailView.PlaybackSample = _playbackSamplePosition;
             }
@@ -541,6 +546,7 @@ namespace MinimalSoundEditor
                     1,
                     _playbackSamplePosition);
             }
+
 
             _waveOut.Init(_currentProvider);
             _waveOut.PlaybackStopped += WaveOut_PlaybackStopped;
@@ -619,12 +625,22 @@ namespace MinimalSoundEditor
         // Klick in Overview/Detail -> Playhead setzen
         private void Waveform_PlaybackPositionChangedByClick(int sampleIndex)
         {
+            // 1) Playhead intern setzen
             _playbackSamplePosition = sampleIndex;
             _overviewView.PlaybackSample = sampleIndex;
             _detailView.PlaybackSample = sampleIndex;
+
+            // 2) Wenn gerade abgespielt wird: sofort an neuer Stelle weiter spielen
+            if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
+            {
+                // Startet das Playback neu – benutzt den neuen _playbackSamplePosition
+                // und berücksichtigt wie bisher Loop / Nicht-Loop.
+                BtnPlay_Click(null, EventArgs.Empty);
+            }
         }
 
-       
+
+
     }
 
     /// <summary>
