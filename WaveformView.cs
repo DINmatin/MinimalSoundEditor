@@ -431,6 +431,7 @@ namespace MinimalSoundEditor
         // Helper: Selektion & Mapping
         // --------------------------------------------------------------------
 
+
         private (int start, int end) GetNormalizedSelection(int totalSamples)
         {
             if (totalSamples <= 0)

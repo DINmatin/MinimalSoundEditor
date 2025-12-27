@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using static MinimalSoundEditor.MainForm;
+using System.IO;
 
 namespace MinimalSoundEditor
 {
@@ -37,6 +38,9 @@ namespace MinimalSoundEditor
         private CheckBox _chkLoop;
         private bool _loopEnabled = false;
 
+        private string _currentFilePath;   // aktuell geladene Datei
+        private bool _isDirty;             // wurde editiert?
+
         public MainForm()
         {
             InitializeComponent();
@@ -58,7 +62,7 @@ namespace MinimalSoundEditor
             _overviewView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
             _overviewView.SelectionChanged += OverviewView_SelectionChanged;
             _overviewView.MouseDoubleClick += OverviewView_MouseDoubleClick;
-            
+
 
             var overviewPanel = new Panel
             {
@@ -249,6 +253,62 @@ namespace MinimalSoundEditor
                 return true;
             }
 
+            // DEL -> Bereich löschen
+            if (keyData == Keys.Delete)
+            {
+                BtnDeleteSelection_Click(null, EventArgs.Empty);
+                return true;
+            }
+
+            // NUM 1 -> an den Anfang der Selektion springen
+            if (keyData == Keys.NumPad1)
+            {
+                JumpToSelectionEdge(toStart: true);
+                return true;
+            }
+
+            // NUM 2 -> ans Ende der Selektion springen
+            if (keyData == Keys.NumPad2)
+            {
+                JumpToSelectionEdge(toStart: false);
+                return true;
+            }
+
+            // CTRL+NUM 0 -> View All (alles auszoomen)
+            if (keyData == (Keys.Control | Keys.NumPad0))
+            {
+                ZoomAll();
+                return true;
+            }
+
+            // CTRL+N -> Bereich normalisieren
+            if (keyData == (Keys.Control | Keys.N))
+            {
+                NormalizeSelection();
+                return true;
+            }
+
+            // CTRL+E -> Bereich exportieren
+            if (keyData == (Keys.Control | Keys.E))
+            {
+                ExportSelection();
+                return true;
+            }
+
+            // CTRL+S -> Datei speichern (Overwrite/Rename)
+            if (keyData == (Keys.Control | Keys.S))
+            {
+                SaveWithPrompt();
+                return true;
+            }
+
+            // CTRL+A -> Alles selektieren
+            if (keyData == (Keys.Control | Keys.A))
+            {
+                SelectAll();
+                return true;
+            }
+
             return base.ProcessCmdKey(ref msg, keyData);
         }
         public interface IPositionedSampleProvider : ISampleProvider
@@ -371,6 +431,18 @@ namespace MinimalSoundEditor
 
             UpdateInfo(sampleRate, _currentSamples.Length);
             UpdatePlaybackTimerInterval();
+
+            _currentFilePath = filePath;
+            _isDirty = false;
+            UpdateWindowTitle();
+        }
+        private void UpdateWindowTitle()
+        {
+            string filePart = string.IsNullOrEmpty(_currentFilePath)
+                ? "Kein File"
+                : Path.GetFileName(_currentFilePath);
+
+            Text = $"Minimal Sound Editor - {filePart}" + (_isDirty ? " *" : "");
         }
 
         private void UpdateInfo(int sampleRate = 0, int sampleCount = 0)
@@ -450,6 +522,9 @@ namespace MinimalSoundEditor
 
             UpdateInfo(_currentSampleRate, _currentSamples.Length);
             UpdatePlaybackTimerInterval();
+
+            _isDirty = true;
+            UpdateWindowTitle();
         }
 
         private float[] CloneSamples(float[] src)
@@ -637,125 +712,415 @@ namespace MinimalSoundEditor
         // Klick in Overview/Detail -> Playhead setzen
         private void Waveform_PlaybackPositionChangedByClick(int sampleIndex)
         {
-            // 1) Playhead intern setzen
+            // nutzt jetzt denselben Weg wie Tastatur-Sprünge
+            JumpToSample(sampleIndex, restartIfPlaying: true);
+        }
+        private void ZoomAll()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            _detailView.VisibleStartSample = 0;
+            _detailView.VisibleSampleCount = 0; // 0 = „ganzer Track“
+        }
+        private void NormalizeSelection()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Normalisieren",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (!TryGetNormalizeTarget(out float targetPeak))
+                return; // User abgebrochen
+
+            // Maximalen Absolutwert im Bereich finden
+            float maxAbs = 0f;
+            for (int i = start; i < end; i++)
+            {
+                float v = Math.Abs(_currentSamples[i]);
+                if (v > maxAbs) maxAbs = v;
+            }
+
+            if (maxAbs <= 0f)
+            {
+                MessageBox.Show(this, "Der Bereich ist komplett stumm – kann nicht normalisiert werden.",
+                    "Normalisieren", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Undo sichern
+            _undoStack.Push(CloneSamples(_currentSamples));
+
+            float factor = targetPeak / maxAbs;
+
+            for (int i = start; i < end; i++)
+            {
+                float v = _currentSamples[i] * factor;
+                if (v > 1f) v = 1f;
+                if (v < -1f) v = -1f;
+                _currentSamples[i] = v;
+            }
+
+            // Views neu füttern + Zoom & Selektion wiederherstellen
+            int oldVisibleStart = _detailView.VisibleStartSample;
+            int oldVisibleCount = _detailView.VisibleSampleCount;
+
+            _overviewView.Samples = _currentSamples;
+            _detailView.Samples = _currentSamples;
+
+            _detailView.VisibleStartSample = oldVisibleStart;
+            _detailView.VisibleSampleCount = oldVisibleCount;
+
+            _overviewView.SetSelection(start, end, raiseEvent: false);
+            _detailView.SetSelection(start, end, raiseEvent: false);
+
+            _overviewView.PlaybackSample = _playbackSamplePosition;
+            _detailView.PlaybackSample = _playbackSamplePosition;
+
+            UpdateInfo(_currentSampleRate, _currentSamples.Length);
+            UpdatePlaybackTimerInterval();
+
+            _isDirty = true;
+            UpdateWindowTitle();
+        }
+        private bool TryGetNormalizeTarget(out float target)
+        {
+            target = 1.0f;
+
+            using (var form = new Form())
+            using (var nud = new NumericUpDown())
+            using (var lbl = new Label())
+            using (var btnOk = new Button())
+            using (var btnCancel = new Button())
+            {
+                form.Text = "Bereich normalisieren";
+                form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.StartPosition = FormStartPosition.CenterParent;
+                form.ClientSize = new System.Drawing.Size(260, 120);
+                form.MinimizeBox = false;
+                form.MaximizeBox = false;
+                form.ShowInTaskbar = false;
+
+                lbl.Text = "Ziel-Pegel (Peak, 0.1 - 2.0):";
+                lbl.AutoSize = true;
+                lbl.Left = 10;
+                lbl.Top = 10;
+
+                nud.Left = 10;
+                nud.Top = 35;
+                nud.Width = 120;
+                nud.DecimalPlaces = 2;
+                nud.Minimum = 0.10M;
+                nud.Maximum = 2.00M;
+                nud.Increment = 0.05M;
+                nud.Value = 1.00M;
+
+                btnOk.Text = "OK";
+                btnOk.DialogResult = DialogResult.OK;
+                btnOk.Left = 40;
+                btnOk.Top = 75;
+                btnOk.Width = 80;
+
+                btnCancel.Text = "Abbrechen";
+                btnCancel.DialogResult = DialogResult.Cancel;
+                btnCancel.Left = 130;
+                btnCancel.Top = 75;
+                btnCancel.Width = 100;
+
+                form.Controls.Add(lbl);
+                form.Controls.Add(nud);
+                form.Controls.Add(btnOk);
+                form.Controls.Add(btnCancel);
+
+                form.AcceptButton = btnOk;
+                form.CancelButton = btnCancel;
+
+                var result = form.ShowDialog(this);
+                if (result != DialogResult.OK)
+                    return false;
+
+                target = (float)nud.Value;
+                return true;
+            }
+        }
+        private void ExportSelection()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Exportieren",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int length = end - start;
+            if (length <= 0)
+                return;
+
+            string defaultName = "selection.wav";
+            if (!string.IsNullOrEmpty(_currentFilePath))
+            {
+                var baseName = Path.GetFileNameWithoutExtension(_currentFilePath);
+                defaultName = baseName + "_selection.wav";
+            }
+
+            using (var sfd = new SaveFileDialog())
+            {
+                sfd.Filter = "WAV-Datei (*.wav)|*.wav";
+                sfd.FileName = defaultName;
+
+                if (sfd.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                using var writer = new WaveFileWriter(
+                    sfd.FileName,
+                    WaveFormat.CreateIeeeFloatWaveFormat(_currentSampleRate, 1));
+
+                writer.WriteSamples(_currentSamples, start, length);
+            }
+        }
+        private void SaveCurrentFile(bool saveAs)
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            string path = _currentFilePath;
+
+            if (saveAs || string.IsNullOrEmpty(path) ||
+                !path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
+            {
+                using var sfd = new SaveFileDialog
+                {
+                    Filter = "WAV-Datei (*.wav)|*.wav",
+                    FileName = string.IsNullOrEmpty(_currentFilePath)
+                        ? "audio.wav"
+                        : Path.GetFileNameWithoutExtension(_currentFilePath) + "_edited.wav"
+                };
+
+                if (sfd.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                path = sfd.FileName;
+                _currentFilePath = path;
+            }
+
+            using (var writer = new WaveFileWriter(
+                path,
+                WaveFormat.CreateIeeeFloatWaveFormat(_currentSampleRate, 1)))
+            {
+                writer.WriteSamples(_currentSamples, 0, _currentSamples.Length);
+            }
+
+            _isDirty = false;
+            UpdateWindowTitle();
+        }
+
+        private void SaveWithPrompt()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            // Falls wir schon eine WAV-Datei haben: Nachfrage Overwrite/Rename
+            if (!string.IsNullOrEmpty(_currentFilePath) &&
+                _currentFilePath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
+            {
+                var result = MessageBox.Show(this,
+                    $"Datei überschreiben?\n{_currentFilePath}\n\n" +
+                    "Yes = überschreiben\nNo = unter neuem Namen speichern\nCancel = abbrechen",
+                    "Speichern",
+                    MessageBoxButtons.YesNoCancel,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.Cancel)
+                    return;
+
+                if (result == DialogResult.Yes)
+                {
+                    SaveCurrentFile(saveAs: false);
+                }
+                else if (result == DialogResult.No)
+                {
+                    SaveCurrentFile(saveAs: true);
+                }
+            }
+            else
+            {
+                // bisher keine oder kein WAV -> direkt „Speichern unter“
+                SaveCurrentFile(saveAs: true);
+            }
+        }
+
+        private bool TryGetCurrentSelection(out int startSample, out int endSample)
+        {
+            // zuerst Detail-View
+            if (_detailView != null &&
+                _detailView.TryGetSelection(out startSample, out endSample) &&
+                endSample > startSample)
+            {
+                return true;
+            }
+
+            // dann Overview-View
+            if (_overviewView != null &&
+                _overviewView.TryGetSelection(out startSample, out endSample) &&
+                endSample > startSample)
+            {
+                return true;
+            }
+
+            startSample = 0;
+            endSample = 0;
+            return false;
+        }
+
+        private void JumpToSample(int sampleIndex, bool restartIfPlaying)
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            int maxIndex = _currentSamples.Length - 1;
+            if (maxIndex < 0) return;
+
+            sampleIndex = Math.Max(0, Math.Min(sampleIndex, maxIndex));
+
             _playbackSamplePosition = sampleIndex;
             _overviewView.PlaybackSample = sampleIndex;
             _detailView.PlaybackSample = sampleIndex;
 
-            // 2) Wenn gerade abgespielt wird: sofort an neuer Stelle weiter spielen
-            if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
+            if (restartIfPlaying && _waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
             {
-                // Startet das Playback neu – benutzt den neuen _playbackSamplePosition
-                // und berücksichtigt wie bisher Loop / Nicht-Loop.
                 BtnPlay_Click(null, EventArgs.Empty);
             }
         }
 
-
-
-    }
-
-    /// <summary>
-    /// Einfacher SampleProvider für float[]-Buffer, mit Startposition und Positionsabfrage.
-    /// </summary>
-    public class SimpleArraySampleProvider : IPositionedSampleProvider
-    {
-        private readonly float[] _buffer;
-        private int _position;
-
-        public SimpleArraySampleProvider(float[] buffer, int sampleRate, int channels, int startSample = 0)
+        private void JumpToSelectionEdge(bool toStart)
         {
-            _buffer = buffer ?? Array.Empty<float>();
-            _position = Math.Max(0, Math.Min(startSample, _buffer.Length));
-            WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
+            if (!TryGetCurrentSelection(out int start, out int end))
+                return;
+
+            int target = toStart ? start : (end - 1);
+            JumpToSample(target, restartIfPlaying: true);
         }
 
-        public WaveFormat WaveFormat { get; }
-
-        public int PositionSamples => _position;
-
-        public int Read(float[] destBuffer, int offset, int count)
+        /// <summary>
+        /// Einfacher SampleProvider für float[]-Buffer, mit Startposition und Positionsabfrage.
+        /// </summary>
+        public class SimpleArraySampleProvider : IPositionedSampleProvider
         {
-            if (_buffer.Length == 0)
-                return 0;
+            private readonly float[] _buffer;
+            private int _position;
 
-            int available = _buffer.Length - _position;
-            if (available <= 0)
-                return 0;
-
-            int toCopy = Math.Min(available, count);
-
-            for (int n = 0; n < toCopy; n++)
+            public SimpleArraySampleProvider(float[] buffer, int sampleRate, int channels, int startSample = 0)
             {
-                destBuffer[offset + n] = _buffer[_position + n];
+                _buffer = buffer ?? Array.Empty<float>();
+                _position = Math.Max(0, Math.Min(startSample, _buffer.Length));
+                WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
             }
 
-            _position += toCopy;
-            return toCopy;
-        }
-    }
+            public WaveFormat WaveFormat { get; }
 
-    public class LoopingArraySampleProvider : IPositionedSampleProvider
-    {
-        private readonly float[] _buffer;
-        private readonly int _loopStart;
-        private readonly int _loopEnd; // exklusiv
-        private int _position;
+            public int PositionSamples => _position;
 
-        public LoopingArraySampleProvider(float[] buffer, int sampleRate, int channels, int loopStartSample, int loopEndSample)
-        {
-            _buffer = buffer ?? Array.Empty<float>();
-
-            int total = _buffer.Length;
-            loopStartSample = Math.Max(0, Math.Min(loopStartSample, total));
-            loopEndSample = Math.Max(0, Math.Min(loopEndSample, total));
-
-            if (loopEndSample <= loopStartSample)
+            public int Read(float[] destBuffer, int offset, int count)
             {
-                loopStartSample = 0;
-                loopEndSample = total;
-            }
+                if (_buffer.Length == 0)
+                    return 0;
 
-            _loopStart = loopStartSample;
-            _loopEnd = loopEndSample;
+                int available = _buffer.Length - _position;
+                if (available <= 0)
+                    return 0;
 
-            _position = _loopStart;
+                int toCopy = Math.Min(available, count);
 
-            WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
-        }
-
-        public WaveFormat WaveFormat { get; }
-
-        public int PositionSamples => _position;
-
-        public int Read(float[] destBuffer, int offset, int count)
-        {
-            if (_buffer.Length == 0 || _loopEnd <= _loopStart)
-                return 0;
-
-            int written = 0;
-
-            while (written < count)
-            {
-                if (_position >= _loopEnd)
+                for (int n = 0; n < toCopy; n++)
                 {
-                    _position = _loopStart; // 🔁 Zurück zum Loop-Anfang
+                    destBuffer[offset + n] = _buffer[_position + n];
                 }
 
-                int samplesUntilLoopEnd = _loopEnd - _position;
-                int samplesToWrite = Math.Min(samplesUntilLoopEnd, count - written);
+                _position += toCopy;
+                return toCopy;
+            }
+        }
+        private void SelectAll()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
 
-                for (int n = 0; n < samplesToWrite; n++)
+            int total = _currentSamples.Length;
+
+            _overviewView.SetSelection(0, total, raiseEvent: true);
+            _detailView.SetSelection(0, total, raiseEvent: true);
+        }
+
+        public class LoopingArraySampleProvider : IPositionedSampleProvider
+        {
+            private readonly float[] _buffer;
+            private readonly int _loopStart;
+            private readonly int _loopEnd; // exklusiv
+            private int _position;
+
+            public LoopingArraySampleProvider(float[] buffer, int sampleRate, int channels, int loopStartSample, int loopEndSample)
+            {
+                _buffer = buffer ?? Array.Empty<float>();
+
+                int total = _buffer.Length;
+                loopStartSample = Math.Max(0, Math.Min(loopStartSample, total));
+                loopEndSample = Math.Max(0, Math.Min(loopEndSample, total));
+
+                if (loopEndSample <= loopStartSample)
                 {
-                    destBuffer[offset + written + n] = _buffer[_position + n];
+                    loopStartSample = 0;
+                    loopEndSample = total;
                 }
 
-                _position += samplesToWrite;
-                written += samplesToWrite;
+                _loopStart = loopStartSample;
+                _loopEnd = loopEndSample;
+
+                _position = _loopStart;
+
+                WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
             }
 
-            return written;
-        }
-    }
+            public WaveFormat WaveFormat { get; }
 
+            public int PositionSamples => _position;
+
+            public int Read(float[] destBuffer, int offset, int count)
+            {
+                if (_buffer.Length == 0 || _loopEnd <= _loopStart)
+                    return 0;
+
+                int written = 0;
+
+                while (written < count)
+                {
+                    if (_position >= _loopEnd)
+                    {
+                        _position = _loopStart; // 🔁 Zurück zum Loop-Anfang
+                    }
+
+                    int samplesUntilLoopEnd = _loopEnd - _position;
+                    int samplesToWrite = Math.Min(samplesUntilLoopEnd, count - written);
+
+                    for (int n = 0; n < samplesToWrite; n++)
+                    {
+                        destBuffer[offset + written + n] = _buffer[_position + n];
+                    }
+
+                    _position += samplesToWrite;
+                    written += samplesToWrite;
+                }
+
+                return written;
+            }
+        }
+
+    }
 }
