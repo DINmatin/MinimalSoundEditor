@@ -284,12 +284,21 @@ namespace MinimalSoundEditor
 
                 if (drawEnd > drawStart)
                 {
-                    float x1 = (drawStart - viewStart) * width / (float)viewCount;
-                    float x2 = (drawEnd - viewStart) * width / (float)viewCount;
+                    // robustes Mapping mit long
+                    long num1 = (long)(drawStart - viewStart) * width;
+                    long num2 = (long)(drawEnd - viewStart) * width;
+
+                    int x1 = (int)(num1 / viewCount);
+                    int x2 = (int)(num2 / viewCount);
+
+                    if (x1 < 0) x1 = 0;
+                    if (x1 > width) x1 = width;
+                    if (x2 < 0) x2 = 0;
+                    if (x2 > width) x2 = width;
 
                     if (x2 < x1)
                     {
-                        float tmp = x1;
+                        int tmp = x1;
                         x1 = x2;
                         x2 = tmp;
                     }
@@ -297,14 +306,14 @@ namespace MinimalSoundEditor
                     using var brush = new SolidBrush(Color.FromArgb(80, Color.Yellow));
                     g.FillRectangle(brush, x1, 0, x2 - x1, height);
 
-                    // Kanten leicht hervorheben
                     using var edgePen = new Pen(Color.Gold, 2);
                     g.DrawLine(edgePen, x1, 0, x1, height);
                     g.DrawLine(edgePen, x2, 0, x2, height);
                 }
             }
 
-            // Playhead (rot), nur wenn innerhalb des sichtbaren Fensters
+
+            // Playhead (rot) – overflow-safe
             if (totalSamples > 0)
             {
                 int windowStart = viewStart;
@@ -313,12 +322,20 @@ namespace MinimalSoundEditor
                 if (_playbackSample >= windowStart && _playbackSample < windowEnd)
                 {
                     int local = _playbackSample - viewStart;
-                    int xPos = (int)(local * (width - 1) / (float)viewCount);
+                    if (local < 0) local = 0;
+                    if (local > viewCount) local = viewCount;
+
+                    long num = (long)local * (width - 1);
+                    int xPos = (int)(num / viewCount);
+
+                    if (xPos < 0) xPos = 0;
+                    if (xPos >= width) xPos = width - 1;
 
                     using var pen = new Pen(Color.Red, 1);
                     g.DrawLine(pen, xPos, 0, xPos, height);
                 }
             }
+
         }
 
         private void MarkPeaksDirty() => _peaksDirty = true;
@@ -338,8 +355,9 @@ namespace MinimalSoundEditor
 
             for (int x = 0; x < width; x++)
             {
-                int localStart = x * viewCount / width;
-                int localEnd = (x + 1) * viewCount / width;
+                int localStart = (int)((long)x * viewCount / width);
+                int localEnd = (int)((long)(x + 1) * viewCount / width);
+
 
                 if (localEnd <= localStart) localEnd = localStart + 1;
                 if (localStart >= viewCount)
@@ -468,7 +486,11 @@ namespace MinimalSoundEditor
                 return 0;
 
             x = Math.Max(0, Math.Min(width - 1, x));
-            int localIndex = x * viewCount / width;
+
+            // ✅ hier war vorher: int localIndex = x * viewCount / width;
+            long localIndexLong = (long)x * viewCount / width;
+            int localIndex = (int)localIndexLong;
+
             int sampleIndex = viewStart + localIndex;
 
             if (sampleIndex < 0) sampleIndex = 0;
@@ -476,6 +498,7 @@ namespace MinimalSoundEditor
 
             return sampleIndex;
         }
+
 
         private int SampleToX(int sampleIndex)
         {
@@ -498,9 +521,13 @@ namespace MinimalSoundEditor
             if (local < 0) local = 0;
             if (local > viewCount) local = viewCount;
 
-            int x = (int)(local * (width - 1) / (float)viewCount);
+            // ✅ vorher float-Rechnung; hier machen wir’s „overflow-sicher“:
+            long xLong = (long)local * (width - 1) / viewCount;
+            int x = (int)xLong;
+
             return x;
         }
+
 
         // --------------------------------------------------------------------
         // Maus-Interaktion
