@@ -1057,6 +1057,8 @@ namespace MinimalSoundEditor
 
             _overviewView.SetSelection(0, total, raiseEvent: true);
             _detailView.SetSelection(0, total, raiseEvent: true);
+
+            ZoomAll();
         }
 
         public class LoopingArraySampleProvider : IPositionedSampleProvider
