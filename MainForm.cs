@@ -187,7 +187,7 @@ namespace MinimalSoundEditor
             // Playback-Timer (UI-Thread)
             _playbackTimer = new System.Windows.Forms.Timer
             {
-                Interval = 5
+                Interval = 16
             };
             _playbackTimer.Tick += PlaybackTimer_Tick;
 
@@ -391,23 +391,30 @@ namespace MinimalSoundEditor
             _lblInfo.Text = $"Samples: {sampleCount} | Dauer: {_trackDurationSeconds:0.00} s | Zoom: {_detailView.Zoom:0.00}x";
         }
 
+        //private void UpdatePlaybackTimerInterval()
+        //{
+        //    if (_currentSamples == null || _currentSamples.Length == 0 || _currentSampleRate <= 0)
+        //        return;
+
+        //    int width = _detailView.Width;
+        //    if (width <= 0)
+        //        width = 1000;
+
+        //    _trackDurationSeconds = _currentSamples.Length / (double)_currentSampleRate;
+
+        //    double idealMs = (_trackDurationSeconds * 1000.0) / width;
+
+        //    int intervalMs = (int)Math.Max(2, Math.Min(idealMs, 15));
+
+        //    if (_playbackTimer != null)
+        //        _playbackTimer.Interval = intervalMs;
+        //}
+
         private void UpdatePlaybackTimerInterval()
         {
-            if (_currentSamples == null || _currentSamples.Length == 0 || _currentSampleRate <= 0)
-                return;
-
-            int width = _detailView.Width;
-            if (width <= 0)
-                width = 1000;
-
-            _trackDurationSeconds = _currentSamples.Length / (double)_currentSampleRate;
-
-            double idealMs = (_trackDurationSeconds * 1000.0) / width;
-
-            int intervalMs = (int)Math.Max(2, Math.Min(idealMs, 15));
-
+            // Einfach konstant lassen – Windows-Timer kann eh nicht besser als ~15 ms
             if (_playbackTimer != null)
-                _playbackTimer.Interval = intervalMs;
+                _playbackTimer.Interval = 16;   // ~60 FPS
         }
 
         private void BtnDeleteSelection_Click(object sender, EventArgs e)
@@ -497,7 +504,12 @@ namespace MinimalSoundEditor
                 _waveOut = null;
             }
 
-            _waveOut = new WaveOutEvent();
+            _waveOut = new WaveOutEvent
+            {
+                DesiredLatency = 50,   // ca. 50 ms Gesamtlatenz
+                NumberOfBuffers = 2    // 2 kleine Buffer
+            };
+
 
             // Prüfen, ob wir loop-fähig sind
             bool hasLoopSelection = false;

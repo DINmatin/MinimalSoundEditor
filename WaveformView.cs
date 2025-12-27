@@ -22,7 +22,6 @@ namespace MinimalSoundEditor
         private bool _isMouseDown;
         private DragMode _dragMode = DragMode.None;
         private const int EdgeHitPixels = 6; // Klick-Toleranz an Selektionskanten
-
         private bool _isHoveringEdge = false;
 
         private enum DragMode
@@ -32,6 +31,23 @@ namespace MinimalSoundEditor
             ResizeLeft,
             ResizeRight
         }
+
+        // Peak-Cache + Bitmap-Cache
+        private struct Peak
+        {
+            public float Min;
+            public float Max;
+        }
+
+        private Peak[] _cachedPeaks = Array.Empty<Peak>();
+        private int _cachedViewStart = -1;
+        private int _cachedViewCount = -1;
+        private int _cachedWidth = -1;
+        private int _cachedHeight = -1;
+
+        private Bitmap _waveformBitmap;
+        private bool _peaksDirty = true;
+        private bool _bitmapDirty = true;
 
         /// <summary>
         /// Wird ausgelöst, wenn der Benutzer per Klick den Playhead verschiebt.
@@ -50,14 +66,13 @@ namespace MinimalSoundEditor
             DoubleBuffered = true;
             SetStyle(ControlStyles.AllPaintingInWmPaint |
                      ControlStyles.UserPaint |
-                     ControlStyles.OptimizedDoubleBuffer, true);
+                     ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw,
+                     true);
 
             BackColor = Color.Black;
+            UpdateStyles();
         }
-
-        // --------------------------------------------------------------------
-        // Public Properties
-        // --------------------------------------------------------------------
 
         /// <summary>
         /// Mono-Samples im Bereich [-1, 1]
@@ -72,6 +87,9 @@ namespace MinimalSoundEditor
                 _playbackSample = 0;
                 _visibleStartSample = 0;
                 _visibleSampleCount = 0; // ganzer Track
+
+                MarkPeaksDirty();
+                MarkBitmapDirty();
                 Invalidate();
             }
         }
@@ -88,6 +106,9 @@ namespace MinimalSoundEditor
                     return;
 
                 _zoom = Math.Max(0.1f, Math.Min(10f, value));
+
+                // nur vertikale Skalierung -> Peaks bleiben, Bitmap neu
+                MarkBitmapDirty();
                 Invalidate();
             }
         }
@@ -122,6 +143,8 @@ namespace MinimalSoundEditor
             set
             {
                 _visibleStartSample = Math.Max(0, value);
+                MarkPeaksDirty();
+                MarkBitmapDirty();
                 Invalidate();
             }
         }
@@ -135,14 +158,26 @@ namespace MinimalSoundEditor
             set
             {
                 _visibleSampleCount = value;
+                MarkPeaksDirty();
+                MarkBitmapDirty();
                 Invalidate();
             }
         }
-        // Öffentliche Abfrage, ob aktuell eine Selektion existiert
+
+        private bool HasSelection =>
+            _samples.Length > 0 &&
+            _selectionStartSample.HasValue &&
+            _selectionEndSample.HasValue &&
+            _selectionStartSample.Value != _selectionEndSample.Value;
+
+        /// <summary>
+        /// Öffentliche Abfrage, ob aktuell eine Selektion existiert.
+        /// </summary>
         public bool HasActiveSelection => HasSelection;
 
-        // Gibt die aktuelle (normalisierte) Selektion zurück.
-        // Rückgabewert: true = es gibt eine Selektion, false = keine.
+        /// <summary>
+        /// Gibt die aktuelle (normalisierte) Selektion zurück.
+        /// </summary>
         public bool TryGetSelection(out int startSample, out int endSample)
         {
             if (!HasSelection)
@@ -158,12 +193,6 @@ namespace MinimalSoundEditor
             return true;
         }
 
-        private bool HasSelection =>
-            _samples.Length > 0 &&
-            _selectionStartSample.HasValue &&
-            _selectionEndSample.HasValue &&
-            _selectionStartSample.Value != _selectionEndSample.Value;
-
         // --------------------------------------------------------------------
         // Rendering
         // --------------------------------------------------------------------
@@ -173,15 +202,15 @@ namespace MinimalSoundEditor
             base.OnPaint(e);
 
             var g = e.Graphics;
-            g.Clear(BackColor);
-
+            int width = ClientSize.Width;
+            int height = ClientSize.Height;
             var samples = _samples ?? Array.Empty<float>();
             int totalSamples = samples.Length;
 
-            if (totalSamples == 0 ||
-                ClientSize.Width <= 1 ||
-                ClientSize.Height <= 1)
+            if (totalSamples == 0 || width <= 1 || height <= 1)
             {
+                g.Clear(BackColor);
+
                 using var b = new SolidBrush(Color.Gray);
                 const string msg = "Keine Audiodatei geladen";
                 var size = g.MeasureString(msg, Font);
@@ -191,11 +220,6 @@ namespace MinimalSoundEditor
                 return;
             }
 
-            int width = ClientSize.Width;
-            int height = ClientSize.Height;
-            float midY = height / 2f;
-            float scaleY = _zoom * (height / 2f - 4);
-
             // Sichtfenster berechnen
             int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
             int maxCount = totalSamples - viewStart;
@@ -204,50 +228,48 @@ namespace MinimalSoundEditor
                 : maxCount;
 
             if (viewCount <= 0)
-                return;
-
-            // Wellenform zeichnen – nur im Sichtfenster
-            for (int x = 0; x < width; x++)
             {
-                int localStart = x * viewCount / width;
-                int localEnd = (x + 1) * viewCount / width;
-
-                if (localEnd <= localStart) localEnd = localStart + 1;
-                if (localStart >= viewCount) break;
-                if (localEnd > viewCount) localEnd = viewCount;
-
-                int startSample = viewStart + localStart;
-                int endSample = viewStart + localEnd;
-
-                if (startSample >= totalSamples)
-                    break;
-
-                if (endSample > totalSamples)
-                    endSample = totalSamples;
-
-                float min = 0f;
-                float max = 0f;
-
-                for (int i = startSample; i < endSample; i++)
-                {
-                    if (i < 0 || i >= totalSamples)
-                        continue;
-
-                    float s = samples[i];
-                    if (s < min) min = s;
-                    if (s > max) max = s;
-                }
-
-                int y1 = (int)(midY - max * scaleY);
-                int y2 = (int)(midY - min * scaleY);
-
-                g.DrawLine(Pens.Lime, x, y1, x, y2);
+                g.Clear(BackColor);
+                return;
             }
 
-            // 0-Linie
-            g.DrawLine(Pens.DarkGray, 0, (int)midY, width, (int)midY);
+            // Haben sich Geometrie / Sichtfenster geändert?
+            if (width != _cachedWidth ||
+                height != _cachedHeight ||
+                viewStart != _cachedViewStart ||
+                viewCount != _cachedViewCount)
+            {
+                _cachedWidth = width;
+                _cachedHeight = height;
+                _cachedViewStart = viewStart;
+                _cachedViewCount = viewCount;
+                MarkPeaksDirty();
+                MarkBitmapDirty();
+            }
 
-            // Auswahl zeichnen
+            // Peaks ggf. neu berechnen
+            if (_peaksDirty)
+            {
+                RebuildPeaks(samples, totalSamples, viewStart, viewCount, width);
+            }
+
+            // Bitmap ggf. neu aufbauen
+            if (_bitmapDirty)
+            {
+                RebuildWaveformBitmap(height);
+            }
+
+            // Hintergrund-Waveform zeichnen
+            if (_waveformBitmap != null)
+            {
+                g.DrawImageUnscaled(_waveformBitmap, 0, 0);
+            }
+            else
+            {
+                g.Clear(BackColor);
+            }
+
+            // Auswahl zeichnen (Overlay)
             if (HasSelection)
             {
                 var sel = GetNormalizedSelection(totalSamples);
@@ -297,6 +319,112 @@ namespace MinimalSoundEditor
                     g.DrawLine(pen, xPos, 0, xPos, height);
                 }
             }
+        }
+
+        private void MarkPeaksDirty() => _peaksDirty = true;
+        private void MarkBitmapDirty() => _bitmapDirty = true;
+
+        private void RebuildPeaks(float[] samples, int totalSamples, int viewStart, int viewCount, int width)
+        {
+            if (width <= 0 || viewCount <= 0 || totalSamples <= 0)
+            {
+                _cachedPeaks = Array.Empty<Peak>();
+                _peaksDirty = false;
+                return;
+            }
+
+            if (_cachedPeaks == null || _cachedPeaks.Length != width)
+                _cachedPeaks = new Peak[width];
+
+            for (int x = 0; x < width; x++)
+            {
+                int localStart = x * viewCount / width;
+                int localEnd = (x + 1) * viewCount / width;
+
+                if (localEnd <= localStart) localEnd = localStart + 1;
+                if (localStart >= viewCount)
+                {
+                    _cachedPeaks[x].Min = 0f;
+                    _cachedPeaks[x].Max = 0f;
+                    continue;
+                }
+                if (localEnd > viewCount) localEnd = viewCount;
+
+                int startSample = viewStart + localStart;
+                int endSample = viewStart + localEnd;
+
+                if (startSample >= totalSamples)
+                {
+                    _cachedPeaks[x].Min = 0f;
+                    _cachedPeaks[x].Max = 0f;
+                    continue;
+                }
+
+                if (endSample > totalSamples)
+                    endSample = totalSamples;
+
+                float min = 0f;
+                float max = 0f;
+
+                for (int i = startSample; i < endSample; i++)
+                {
+                    if (i < 0 || i >= totalSamples)
+                        continue;
+
+                    float s = samples[i];
+                    if (s < min) min = s;
+                    if (s > max) max = s;
+                }
+
+                _cachedPeaks[x].Min = min;
+                _cachedPeaks[x].Max = max;
+            }
+
+            _peaksDirty = false;
+        }
+
+        private void RebuildWaveformBitmap(int height)
+        {
+            int width = _cachedWidth;
+            if (width <= 0 || height <= 0 || _cachedPeaks == null || _cachedPeaks.Length != width)
+            {
+                _waveformBitmap?.Dispose();
+                _waveformBitmap = null;
+                _bitmapDirty = false;
+                return;
+            }
+
+            _waveformBitmap?.Dispose();
+            _waveformBitmap = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+
+            using var g = Graphics.FromImage(_waveformBitmap);
+            g.Clear(BackColor);
+
+            float midY = height / 2f;
+            float scaleY = _zoom * (height / 2f - 4);
+
+            using var penWave = new Pen(Color.Lime, 1);
+
+            for (int x = 0; x < width; x++)
+            {
+                var p = _cachedPeaks[x];
+                int y1 = (int)(midY - p.Max * scaleY);
+                int y2 = (int)(midY - p.Min * scaleY);
+
+                g.DrawLine(penWave, x, y1, x, y2);
+            }
+
+            // 0-Linie
+            g.DrawLine(Pens.DarkGray, 0, (int)midY, width, (int)midY);
+
+            _bitmapDirty = false;
+        }
+
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+            MarkPeaksDirty();
+            MarkBitmapDirty();
         }
 
         // --------------------------------------------------------------------
@@ -413,20 +541,20 @@ namespace MinimalSoundEditor
                 if (nearLeft && !nearRight)
                 {
                     _dragMode = DragMode.ResizeLeft;
-                    Cursor = Cursors.SizeWE;           // ⚡ Resize-Cursor setzen
+                    Cursor = Cursors.SizeWE;
                     return;
                 }
                 if (nearRight && !nearLeft)
                 {
                     _dragMode = DragMode.ResizeRight;
-                    Cursor = Cursors.SizeWE;           // ⚡ Resize-Cursor setzen
+                    Cursor = Cursors.SizeWE;
                     return;
                 }
                 if (nearLeft && nearRight)
                 {
                     // extrem schmale Auswahl: nimm z.B. rechts
                     _dragMode = DragMode.ResizeRight;
-                    Cursor = Cursors.SizeWE;           // ⚡ Resize-Cursor setzen
+                    Cursor = Cursors.SizeWE;
                     return;
                 }
             }
@@ -456,7 +584,7 @@ namespace MinimalSoundEditor
 
             int totalSamples = _samples.Length;
 
-            // -------- HOVER-LOGIK FÜR KANTEN (wenn keine Maustaste gedrückt) --------
+            // HOVER-LOGIK FÜR KANTEN (wenn keine Maustaste gedrückt)
             if (!_isMouseDown && HasSelection)
             {
                 var sel = GetNormalizedSelection(totalSamples);
@@ -474,17 +602,17 @@ namespace MinimalSoundEditor
 
                 if (nearLeft || nearRight)
                 {
-                    Cursor = Cursors.SizeWE;       // ⚡ über Kante -> Resize-Cursor
+                    Cursor = Cursors.SizeWE;
                     _isHoveringEdge = true;
                 }
                 else if (_isHoveringEdge)
                 {
-                    Cursor = Cursors.Default;      // weg von der Kante -> Normal
+                    Cursor = Cursors.Default;
                     _isHoveringEdge = false;
                 }
             }
 
-            // -------- DRAGGEN (nur wenn Maus gedrückt) --------
+            // DRAGGEN (nur wenn Maus gedrückt)
             if (!_isMouseDown || _dragMode == DragMode.None)
                 return;
 
@@ -500,7 +628,6 @@ namespace MinimalSoundEditor
                     {
                         int end = _selectionEndSample ?? idx;
                         _selectionStartSample = idx;
-                        // Start darf nicht rechts von End liegen
                         var sel = GetNormalizedSelection(totalSamples);
                         _selectionStartSample = sel.start;
                         _selectionEndSample = sel.end;
@@ -536,19 +663,16 @@ namespace MinimalSoundEditor
 
             if (_selectionStartSample.HasValue && _selectionEndSample.HasValue)
             {
-                // 🔁 Selektion einmal „in Stein meißeln“: start <= end
                 var sel = GetNormalizedSelection(_samples.Length);
                 _selectionStartSample = sel.start;
                 _selectionEndSample = sel.end;
 
                 if (sel.start != sel.end)
                 {
-                    // Nur wenn echte Länge vorhanden ist, Event auslösen
                     SelectionChanged?.Invoke(sel.start, sel.end);
                 }
                 else
                 {
-                    // Nichts ausgewählt → Selektion löschen
                     ClearSelection();
                 }
             }
@@ -557,8 +681,6 @@ namespace MinimalSoundEditor
             Cursor = Cursors.Default;
             _isHoveringEdge = false;
         }
-
-
 
         // --------------------------------------------------------------------
         // Public API für Selektion
@@ -626,6 +748,9 @@ namespace MinimalSoundEditor
                 _samples = Array.Empty<float>();
                 ClearSelection();
                 PlaybackSample = 0;
+
+                MarkPeaksDirty();
+                MarkBitmapDirty();
                 Invalidate();
                 return;
             }
@@ -641,6 +766,9 @@ namespace MinimalSoundEditor
             PlaybackSample = start;
 
             ClearSelection();
+
+            MarkPeaksDirty();
+            MarkBitmapDirty();
             Invalidate();
         }
     }
