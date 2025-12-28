@@ -28,6 +28,11 @@ namespace MinimalSoundEditor
         private Panel _overviewPanel;
         private Button _btnTheme;
 
+        private MenuStrip _menuStrip;
+
+        private ToolStripMenuItem _miThemeLight;
+        private ToolStripMenuItem _miThemeDark;
+
         public enum ThemeMode
         {
             Light,
@@ -87,6 +92,7 @@ namespace MinimalSoundEditor
             InitializeComponent();
             LoadThemeSettings();
             ApplyTheme();
+            UpdateThemeMenuChecks();
         }
 
         private void InitializeComponent()
@@ -96,7 +102,7 @@ namespace MinimalSoundEditor
             Height = 600;
             KeyPreview = true;
 
-            // Overview (oben, klein)
+            // === OVERVIEW (oben, klein) ===
             _overviewView = new WaveformView
             {
                 Dock = DockStyle.Fill,
@@ -106,7 +112,6 @@ namespace MinimalSoundEditor
             _overviewView.SelectionChanged += OverviewView_SelectionChanged;
             _overviewView.MouseDoubleClick += OverviewView_MouseDoubleClick;
 
-
             _overviewPanel = new Panel
             {
                 Dock = DockStyle.Top,
@@ -114,8 +119,7 @@ namespace MinimalSoundEditor
             };
             _overviewPanel.Controls.Add(_overviewView);
 
-
-            // Detail (unten, für Editing)
+            // === DETAIL (unten, Editing) ===
             _detailView = new WaveformView
             {
                 Dock = DockStyle.Fill,
@@ -123,9 +127,8 @@ namespace MinimalSoundEditor
             };
             _detailView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
             _detailView.SelectionChanged += DetailView_SelectionChanged;
-            // SelectionChanged vom Detail verwenden wir für Editing (DeleteSelection), aber
-            // nicht zum Zoomen – deshalb hier kein Handler.
 
+            // === TOP BUTTON BAR ===
             _btnOpen = new Button
             {
                 Text = "Öffnen...",
@@ -195,7 +198,7 @@ namespace MinimalSoundEditor
                 Width = 70,
                 Left = 580,
                 Top = 10,
-                TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleCenter
             };
             _chkLoop.CheckedChanged += (s, e) =>
             {
@@ -224,25 +227,165 @@ namespace MinimalSoundEditor
                 Height = 45,
                 Dock = DockStyle.Top
             };
-
             _topPanel.Controls.AddRange(new Control[]
             {
-                _btnOpen,
-                _btnZoomIn,
-                _btnZoomOut,
-                _btnDeleteSelection,
-                _btnPlay,
-                _btnStop,
-                _chkLoop,
-                _btnTheme,
-                _lblInfo
+        _btnOpen,
+        _btnZoomIn,
+        _btnZoomOut,
+        _btnDeleteSelection,
+        _btnPlay,
+        _btnStop,
+        _chkLoop,
+        _btnTheme,
+        _lblInfo
             });
 
-            Controls.Add(_detailView);
-            Controls.Add(_overviewPanel);
-            Controls.Add(_topPanel);
+            // === MENÜLEISTE ===
+            _menuStrip = new MenuStrip
+            {
+                Dock = DockStyle.Top
+            };
 
-            // Playback-Timer (UI-Thread)
+            // --- Datei ---
+            var miFile = new ToolStripMenuItem("&Datei");
+
+            var miFileOpen = new ToolStripMenuItem("Öffnen...", null, (s, e) => BtnOpen_Click(s, e))
+            {
+                ShortcutKeys = Keys.Control | Keys.O
+            };
+
+            var miFileSave = new ToolStripMenuItem("Speichern", null, (s, e) => SaveWithPrompt())
+            {
+                ShortcutKeys = Keys.Control | Keys.S
+            };
+
+            var miFileSaveAs = new ToolStripMenuItem("Speichern unter...", null, (s, e) => SaveAsWithFormat())
+            {
+                ShortcutKeys = Keys.Control | Keys.Shift | Keys.S
+            };
+
+            var miFileExportSel = new ToolStripMenuItem("Auswahl exportieren...", null, (s, e) => ExportSelectionAs())
+            {
+                ShortcutKeys = Keys.Control | Keys.Shift | Keys.E
+            };
+
+            var miFileExit = new ToolStripMenuItem("Beenden", null, (s, e) => Close());
+
+            miFile.DropDownItems.AddRange(new ToolStripItem[]
+            {
+        miFileOpen,
+        new ToolStripSeparator(),
+        miFileSave,
+        miFileSaveAs,
+        new ToolStripSeparator(),
+        miFileExportSel,
+        new ToolStripSeparator(),
+        miFileExit
+            });
+
+            // --- Ansicht ---
+            var miView = new ToolStripMenuItem("&Ansicht");
+
+            var miViewZoomIn = new ToolStripMenuItem("Zoom +", null, (s, e) =>
+            {
+                _detailView.Zoom *= 1.5f;
+                UpdateInfo();
+            })
+            {
+                ShortcutKeys = Keys.Control | Keys.Add
+            };
+
+            var miViewZoomOut = new ToolStripMenuItem("Zoom -", null, (s, e) =>
+            {
+                _detailView.Zoom /= 1.5f;
+                UpdateInfo();
+            })
+            {
+                ShortcutKeys = Keys.Control | Keys.Subtract
+            };
+
+            var miViewZoomAll = new ToolStripMenuItem("Alles anzeigen", null, (s, e) => ZoomAll())
+            {
+                ShortcutKeys = Keys.Control | Keys.NumPad0
+            };
+
+            miView.DropDownItems.AddRange(new ToolStripItem[]
+            {
+        miViewZoomIn,
+        miViewZoomOut,
+        new ToolStripSeparator(),
+        miViewZoomAll
+            });
+
+            // --- Theme ---
+            var miTheme = new ToolStripMenuItem("&Theme");
+
+            _miThemeLight = new ToolStripMenuItem("Light", null, (s, e) =>
+            {
+                _currentThemeMode = ThemeMode.Light;
+                ApplyTheme();
+                SaveThemeSettings();
+                UpdateThemeMenuChecks();
+            })
+            {
+                CheckOnClick = false
+            };
+
+            _miThemeDark = new ToolStripMenuItem("Dark", null, (s, e) =>
+            {
+                _currentThemeMode = ThemeMode.Dark;
+                ApplyTheme();
+                SaveThemeSettings();
+                UpdateThemeMenuChecks();
+            })
+            {
+                CheckOnClick = false
+            };
+
+            var miThemeSettings = new ToolStripMenuItem("Einstellungen...", null, (s, e) => OpenThemeSettings())
+            {
+                ShortcutKeys = Keys.Control | Keys.T
+            };
+
+            // Presets
+            var miPresets = new ToolStripMenuItem("Presets");
+            var miPresetNeon = new ToolStripMenuItem("Neon", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetNeon));
+            var miPresetConsole = new ToolStripMenuItem("Console Green", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetConsoleGreen));
+            var miPresetSunset = new ToolStripMenuItem("Warm Sunset", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetWarmSunset));
+
+            miPresets.DropDownItems.AddRange(new ToolStripItem[]
+            {
+        miPresetNeon,
+        miPresetConsole,
+        miPresetSunset
+            });
+
+            miTheme.DropDownItems.AddRange(new ToolStripItem[]
+            {
+        _miThemeLight,
+        _miThemeDark,
+        new ToolStripSeparator(),
+        miThemeSettings,
+        new ToolStripSeparator(),
+        miPresets
+            });
+
+            _menuStrip.Items.AddRange(new ToolStripItem[]
+            {
+        miFile,
+        miView,
+        miTheme
+            });
+
+            MainMenuStrip = _menuStrip;
+
+            // === Controls anordnen (Reihenfolge für DockStyle.Top wichtig!) ===
+            Controls.Add(_detailView);    // Fill
+            Controls.Add(_overviewPanel); // Top (unterhalb TopPanel)
+            Controls.Add(_topPanel);      // Top (unterhalb Menü)
+            Controls.Add(_menuStrip);     // Top (ganz oben)
+
+            // === Playback-Timer (UI-Thread) ===
             _playbackTimer = new System.Windows.Forms.Timer
             {
                 Interval = 16
@@ -252,6 +395,7 @@ namespace MinimalSoundEditor
             FormClosing += MainForm_FormClosing;
             Resize += MainForm_Resize;
         }
+
         private void InitThemes()
         {
             _lightTheme = new ThemeDefinition { Waveform = new WaveformViewTheme() };
@@ -261,6 +405,14 @@ namespace MinimalSoundEditor
             SetDefaultDarkTheme(_darkTheme);
 
             _currentThemeMode = ThemeMode.Dark; // Start im Dark-Mode
+        }
+        private void UpdateThemeMenuChecks()
+        {
+            if (_miThemeLight == null || _miThemeDark == null)
+                return;
+
+            _miThemeLight.Checked = _currentThemeMode == ThemeMode.Light;
+            _miThemeDark.Checked = _currentThemeMode == ThemeMode.Dark;
         }
 
         private void ApplyTheme()
@@ -380,14 +532,74 @@ namespace MinimalSoundEditor
                 {
                     _currentThemeMode = dlg.SelectedMode;
                     ApplyTheme();
+                    UpdateThemeMenuChecks();
                     SaveThemeSettings();
                 }
                 else
                 {
                     // trotzdem sicherstellen, dass die aktive Ansicht konsistent ist
                     ApplyTheme();
+                    UpdateThemeMenuChecks();
                 }
             }
+        }
+        private void ApplyPresetToCurrentTheme(Action<ThemeDefinition> presetApplier)
+        {
+            if (presetApplier == null) return;
+
+            var t = CurrentTheme;
+            presetApplier(t);
+
+            ApplyTheme();
+            SaveThemeSettings();
+        }
+        private static void ApplyPresetNeon(ThemeDefinition t)
+        {
+            // Hintergrund sehr dunkel, Wave knallgrün / magenta
+            t.FormBack = Color.FromArgb(16, 16, 28);
+            t.ButtonBack = Color.FromArgb(40, 40, 70);
+            t.ButtonFore = Color.WhiteSmoke;
+            t.ButtonBorder = Color.DeepSkyBlue;
+
+            t.Waveform.Background = Color.Black;
+            t.Waveform.WaveColor = Color.Lime;
+            t.Waveform.ZeroLineColor = Color.MediumPurple;
+            t.Waveform.SelectionFillColor = Color.FromArgb(120, Color.DeepPink);
+            t.Waveform.SelectionEdgeColor = Color.HotPink;
+            t.Waveform.PlayheadColor = Color.Cyan;
+            t.Waveform.TextColor = Color.WhiteSmoke;
+        }
+
+        private static void ApplyPresetConsoleGreen(ThemeDefinition t)
+        {
+            t.FormBack = Color.Black;
+            t.ButtonBack = Color.FromArgb(10, 40, 10);
+            t.ButtonFore = Color.LawnGreen;
+            t.ButtonBorder = Color.LimeGreen;
+
+            t.Waveform.Background = Color.Black;
+            t.Waveform.WaveColor = Color.Lime;
+            t.Waveform.ZeroLineColor = Color.FromArgb(0, 80, 0);
+            t.Waveform.SelectionFillColor = Color.FromArgb(120, 0, 100, 0);
+            t.Waveform.SelectionEdgeColor = Color.LimeGreen;
+            t.Waveform.PlayheadColor = Color.Chartreuse;
+            t.Waveform.TextColor = Color.LawnGreen;
+        }
+
+        private static void ApplyPresetWarmSunset(ThemeDefinition t)
+        {
+            t.FormBack = Color.FromArgb(35, 20, 20);
+            t.ButtonBack = Color.FromArgb(70, 40, 30);
+            t.ButtonFore = Color.Moccasin;
+            t.ButtonBorder = Color.SandyBrown;
+
+            t.Waveform.Background = Color.FromArgb(20, 8, 8);
+            t.Waveform.WaveColor = Color.Orange;
+            t.Waveform.ZeroLineColor = Color.SaddleBrown;
+            t.Waveform.SelectionFillColor = Color.FromArgb(120, Color.OrangeRed);
+            t.Waveform.SelectionEdgeColor = Color.Gold;
+            t.Waveform.PlayheadColor = Color.LightGoldenrodYellow;
+            t.Waveform.TextColor = Color.Bisque;
         }
 
 

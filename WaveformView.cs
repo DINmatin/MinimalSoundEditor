@@ -140,10 +140,17 @@ namespace MinimalSoundEditor
             public void ApplyTheme(WaveformViewTheme theme)
             {
                 if (theme == null) return;
+
                 _theme = theme;
                 BackColor = _theme.Background;
+
+                // 👇 WICHTIG: Bitmap & Peaks ungültig machen
+                MarkPeaksDirty();
+                MarkBitmapDirty();
+
                 Invalidate();
             }
+
 
             /// <summary>
             /// Aktuelle Abspielposition in Samples (Playhead, global).
@@ -243,7 +250,7 @@ namespace MinimalSoundEditor
                 {
                     g.Clear(BackColor);
 
-                    using var b = new SolidBrush(Color.Gray);
+                    using var b = new SolidBrush(_theme.TextColor);
                     const string msg = "Keine Audiodatei geladen";
                     var size = g.MeasureString(msg, Font);
                     g.DrawString(msg, Font, b,
@@ -335,10 +342,11 @@ namespace MinimalSoundEditor
                             x2 = tmp;
                         }
 
-                        using var brush = new SolidBrush(Color.FromArgb(80, Color.Yellow));
+                        using var brush = new SolidBrush(_theme.SelectionFillColor);
                         g.FillRectangle(brush, x1, 0, x2 - x1, height);
 
-                        using var edgePen = new Pen(Color.Gold, 2);
+                        using var edgePen = new Pen(_theme.SelectionEdgeColor, 2);
+
                         g.DrawLine(edgePen, x1, 0, x1, height);
                         g.DrawLine(edgePen, x2, 0, x2, height);
                     }
@@ -363,7 +371,8 @@ namespace MinimalSoundEditor
                         if (xPos < 0) xPos = 0;
                         if (xPos >= width) xPos = width - 1;
 
-                        using var pen = new Pen(Color.Red, 1);
+                        using var pen = new Pen(_theme.PlayheadColor, 1);
+
                         g.DrawLine(pen, xPos, 0, xPos, height);
                     }
                 }
@@ -448,12 +457,14 @@ namespace MinimalSoundEditor
                 _waveformBitmap = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
 
                 using var g = Graphics.FromImage(_waveformBitmap);
-                g.Clear(BackColor);
+                g.Clear(_theme.Background);
+
 
                 float midY = height / 2f;
                 float scaleY = _zoom * (height / 2f - 4);
 
-                using var penWave = new Pen(Color.Lime, 1);
+                using var penWave = new Pen(_theme.WaveColor, 1);
+
 
                 for (int x = 0; x < width; x++)
                 {
@@ -465,7 +476,9 @@ namespace MinimalSoundEditor
                 }
 
                 // 0-Linie
-                g.DrawLine(Pens.DarkGray, 0, (int)midY, width, (int)midY);
+                using var zeroPen = new Pen(_theme.ZeroLineColor, 1);
+                g.DrawLine(zeroPen, 0, (int)midY, width, (int)midY);
+
 
                 _bitmapDirty = false;
             }
