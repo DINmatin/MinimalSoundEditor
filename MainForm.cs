@@ -1069,12 +1069,14 @@ namespace MinimalSoundEditor
                 _waveOut = null;
             }
 
-            _waveOut = new WaveOutEvent
-            {
-                DesiredLatency = 50,   // ca. 50 ms Gesamtlatenz
-                NumberOfBuffers = 2    // 2 kleine Buffer
-            };
+            //_waveOut = new WaveOutEvent
+            //{
+            //    DesiredLatency = 50,   // ca. 50 ms Gesamtlatenz
+            //    NumberOfBuffers = 2    // 2 kleine Buffer
+            //};
 
+            // etwas konservativere Standard-Einstellungen verwenden
+            _waveOut = new WaveOutEvent();
 
             // Prüfen, ob wir loop-fähig sind
             bool hasLoopSelection = false;
