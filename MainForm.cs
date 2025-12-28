@@ -1,11 +1,13 @@
+using MinimalSoundEditor.MinimalSoundEditor;
+using NAudio.MediaFoundation;
 using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 using static MinimalSoundEditor.MainForm;
-using System.IO;
-using NAudio.Wave.SampleProviders;
-using NAudio.MediaFoundation;
 
 namespace MinimalSoundEditor
 {
@@ -20,6 +22,35 @@ namespace MinimalSoundEditor
         private Button _btnPlay;
         private Button _btnStop;
         private Label _lblInfo;
+
+        private Panel _topPanel;
+        private Panel _overviewPanel;
+        private Button _btnTheme;
+
+        public enum ThemeMode
+        {
+            Light,
+            Dark
+        }
+
+        public class ThemeDefinition
+        {
+            public ThemeMode Mode { get; set; }
+            public Color FormBack { get; set; }
+            public WaveformViewTheme Waveform { get; set; }
+            public Color ButtonBack { get; set; }
+            public Color ButtonFore { get; set; }
+            public Color ButtonBorder { get; set; }
+        }
+
+        // Theme
+        private ThemeDefinition _lightTheme;
+        private ThemeDefinition _darkTheme;
+        private ThemeMode _currentThemeMode = ThemeMode.Dark;
+
+        private ThemeDefinition CurrentTheme =>
+            _currentThemeMode == ThemeMode.Light ? _lightTheme : _darkTheme;
+
 
         // Audio-Daten
         private float[] _currentSamples = Array.Empty<float>();
@@ -53,6 +84,8 @@ namespace MinimalSoundEditor
         public MainForm()
         {
             InitializeComponent();
+            InitThemes();
+            ApplyTheme();
         }
 
         private void InitializeComponent()
@@ -73,12 +106,13 @@ namespace MinimalSoundEditor
             _overviewView.MouseDoubleClick += OverviewView_MouseDoubleClick;
 
 
-            var overviewPanel = new Panel
+            _overviewPanel = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 80
             };
-            overviewPanel.Controls.Add(_overviewView);
+            _overviewPanel.Controls.Add(_overviewView);
+
 
             // Detail (unten, für Editing)
             _detailView = new WaveformView
@@ -167,21 +201,30 @@ namespace MinimalSoundEditor
                 _loopEnabled = _chkLoop.Checked;
             };
 
+            _btnTheme = new Button
+            {
+                Text = "Theme...",
+                Width = 80,
+                Left = 660,
+                Top = 10
+            };
+            _btnTheme.Click += (s, e) => OpenThemeSettings();
+
             _lblInfo = new Label
             {
                 Text = "Keine Datei geladen",
                 AutoSize = true,
-                Left = 580,
+                Left = 760,
                 Top = 15
             };
 
-            var topPanel = new Panel
+            _topPanel = new Panel
             {
                 Height = 45,
                 Dock = DockStyle.Top
             };
 
-            topPanel.Controls.AddRange(new Control[]
+            _topPanel.Controls.AddRange(new Control[]
             {
                 _btnOpen,
                 _btnZoomIn,
@@ -190,12 +233,13 @@ namespace MinimalSoundEditor
                 _btnPlay,
                 _btnStop,
                 _chkLoop,
+                _btnTheme,
                 _lblInfo
             });
 
             Controls.Add(_detailView);
-            Controls.Add(overviewPanel);
-            Controls.Add(topPanel);
+            Controls.Add(_overviewPanel);
+            Controls.Add(_topPanel);
 
             // Playback-Timer (UI-Thread)
             _playbackTimer = new System.Windows.Forms.Timer
@@ -207,6 +251,112 @@ namespace MinimalSoundEditor
             FormClosing += MainForm_FormClosing;
             Resize += MainForm_Resize;
         }
+        private void InitThemes()
+        {
+            _lightTheme = new ThemeDefinition { Waveform = new WaveformViewTheme() };
+            _darkTheme = new ThemeDefinition { Waveform = new WaveformViewTheme() };
+
+            SetDefaultLightTheme(_lightTheme);
+            SetDefaultDarkTheme(_darkTheme);
+
+            _currentThemeMode = ThemeMode.Dark; // Start im Dark-Mode
+        }
+
+        private void ApplyTheme()
+        {
+            var t = CurrentTheme;
+
+            BackColor = t.FormBack;
+
+            if (_overviewPanel != null)
+                _overviewPanel.BackColor = t.FormBack;
+
+            if (_topPanel != null)
+                _topPanel.BackColor = t.FormBack;
+
+            if (_lblInfo != null)
+            {
+                _lblInfo.ForeColor = t.Waveform.TextColor;
+                _lblInfo.BackColor = Color.Transparent;
+            }
+
+            StyleButtons(_topPanel, t);
+
+            if (_overviewView != null)
+                _overviewView.ApplyTheme(t.Waveform);
+
+            if (_detailView != null)
+                _detailView.ApplyTheme(t.Waveform);
+        }
+        private void StyleButtons(Control parent, ThemeDefinition theme)
+        {
+            if (parent == null)
+                return;
+
+            foreach (Control c in parent.Controls)
+            {
+                if (c is Button btn)
+                {
+                    btn.FlatStyle = FlatStyle.Flat;
+                    btn.FlatAppearance.BorderSize = 1;
+                    btn.FlatAppearance.BorderColor = theme.ButtonBorder;
+                    btn.BackColor = theme.ButtonBack;
+                    btn.ForeColor = theme.ButtonFore;
+                }
+
+                if (c.HasChildren)
+                    StyleButtons(c, theme);
+            }
+        }
+
+        internal static void SetDefaultLightTheme(ThemeDefinition t)
+        {
+            if (t.Waveform == null) t.Waveform = new WaveformViewTheme();
+            t.Mode = ThemeMode.Light;
+            t.FormBack = Color.WhiteSmoke;
+            t.ButtonBack = Color.WhiteSmoke;
+            t.ButtonFore = Color.Black;
+            t.ButtonBorder = Color.DarkGray;
+
+            t.Waveform.Background = Color.White;
+            t.Waveform.WaveColor = Color.ForestGreen;
+            t.Waveform.ZeroLineColor = Color.DarkGray;
+            t.Waveform.SelectionFillColor = Color.FromArgb(80, Color.Gold);
+            t.Waveform.SelectionEdgeColor = Color.Gold;
+            t.Waveform.PlayheadColor = Color.Red;
+            t.Waveform.TextColor = Color.Black;
+        }
+
+        internal static void SetDefaultDarkTheme(ThemeDefinition t)
+        {
+            if (t.Waveform == null) t.Waveform = new WaveformViewTheme();
+            t.Mode = ThemeMode.Dark;
+
+            // Fensterhintergrund etwas heller als ganz schwarz
+            t.FormBack = Color.FromArgb(32, 32, 32);
+            t.ButtonBack = Color.FromArgb(55, 55, 55);
+            t.ButtonFore = Color.WhiteSmoke;
+            t.ButtonBorder = Color.DimGray;
+
+            t.Waveform.Background = Color.Black;
+
+            // Wellenfarbe ruhig knallig lassen
+            t.Waveform.WaveColor = Color.Lime;
+
+            // 0-Linie gut sichtbar
+            t.Waveform.ZeroLineColor = Color.Gray;
+
+            // Auswahl etwas kräftiger gelb
+            t.Waveform.SelectionFillColor = Color.FromArgb(110, Color.Yellow);
+            t.Waveform.SelectionEdgeColor = Color.Gold;
+
+            t.Waveform.PlayheadColor = Color.Red;
+
+            // 👇 Text richtig hell machen
+            t.Waveform.TextColor = Color.WhiteSmoke;
+        }
+
+
         private void OverviewView_SelectionChanged(int startSample, int endSample)
         {
             if (endSample <= startSample)
@@ -220,6 +370,22 @@ namespace MinimalSoundEditor
 
             // Loop-Bereich merken wir NICHT mehr hier,
             // sondern fragen später direkt bei den Views nach.
+        }
+        private void OpenThemeSettings()
+        {
+            using (var dlg = new ThemeSettingsForm(_lightTheme, _darkTheme, _currentThemeMode))
+            {
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    _currentThemeMode = dlg.SelectedMode;
+                    ApplyTheme();
+                }
+                else
+                {
+                    // trotzdem sicherstellen, dass die aktive Ansicht konsistent ist
+                    ApplyTheme();
+                }
+            }
         }
 
 
@@ -238,6 +404,13 @@ namespace MinimalSoundEditor
             if (keyData == (Keys.Control | Keys.O))
             {
                 BtnOpen_Click(null, EventArgs.Empty);
+                return true;
+            }
+
+            // CTRL+T -> Theme-Settings
+            if (keyData == (Keys.Control | Keys.T))
+            {
+                OpenThemeSettings();
                 return true;
             }
 
