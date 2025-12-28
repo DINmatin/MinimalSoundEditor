@@ -64,6 +64,21 @@ namespace MinimalSoundEditor
 
             private WaveformViewTheme _theme;
 
+            private int _sampleRate = 44100;
+            /// <summary>
+            /// Abtastrate in Hz, wird für die Zeit-Skala verwendet.
+            /// </summary>
+            public int SampleRate
+            {
+                get => _sampleRate;
+                set
+                {
+                    _sampleRate = value > 0 ? value : 44100;
+                    Invalidate();
+                }
+            }
+
+
             /// <summary>
             /// Wird ausgelöst, wenn der Benutzer per Klick den Playhead verschiebt.
             /// Übergibt den Sampleindex (global).
@@ -171,6 +186,18 @@ namespace MinimalSoundEditor
                     }
                     Invalidate();
                 }
+            }
+            private static double GetNiceTimeStep(double visibleSeconds)
+            {
+                // sehr einfache Heuristik für Ticks
+                if (visibleSeconds <= 1.0) return 0.1;   // 100 ms
+                if (visibleSeconds <= 5.0) return 0.5;   // 500 ms
+                if (visibleSeconds <= 10.0) return 1.0;   // 1 s
+                if (visibleSeconds <= 30.0) return 2.0;   // 2 s
+                if (visibleSeconds <= 60.0) return 5.0;   // 5 s
+                if (visibleSeconds <= 300.0) return 10.0;  // 10 s
+                if (visibleSeconds <= 900.0) return 30.0;  // 30 s
+                return 60.0;                               // 1 min
             }
 
             /// <summary>
@@ -306,6 +333,45 @@ namespace MinimalSoundEditor
                 else
                 {
                     g.Clear(BackColor);
+                }
+                // Zeit-Skala oben einblenden (Wavelab-Style light)
+                if (_sampleRate > 0)
+                {
+                    double startSeconds = viewStart / (double)_sampleRate;
+                    double visibleSeconds = viewCount / (double)_sampleRate;
+                    double endSeconds = startSeconds + visibleSeconds;
+
+                    double step = GetNiceTimeStep(visibleSeconds);
+                    int rulerHeight = 12; // Höhe der Tick-Striche
+
+                    using var tickPen = new Pen(_theme.ZeroLineColor, 1);
+                    using var textBrush = new SolidBrush(_theme.TextColor);
+                    var font = this.Font;
+
+                    // erster Tick >= startSeconds
+                    double firstTick = Math.Ceiling(startSeconds / step) * step;
+
+                    for (double t = firstTick; t <= endSeconds; t += step)
+                    {
+                        double samplePos = t * _sampleRate;
+                        double rel = (samplePos - viewStart) / viewCount; // 0..1
+                        float x = (float)(rel * width);
+                        if (x < 0 || x > width) continue;
+
+                        // Tick-Strich
+                        g.DrawLine(tickPen, x, 0, x, rulerHeight);
+
+                        // Beschriftung: 0.0s, 1.0s, 5s, 10s ...
+                        string label = (t < 10.0) ? $"{t:0.0}s" : $"{t:0}s";
+                        var size = g.MeasureString(label, font);
+                        float textX = x - size.Width / 2f;
+                        float textY = rulerHeight; // direkt unter den Strichen
+
+                        if (textX + size.Width >= 0 && textX <= width)
+                        {
+                            g.DrawString(label, font, textBrush, textX, textY);
+                        }
+                    }
                 }
 
                 // Auswahl zeichnen (Overlay)

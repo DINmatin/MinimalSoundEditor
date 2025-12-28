@@ -864,8 +864,23 @@ namespace MinimalSoundEditor
             int channels = reader.WaveFormat.Channels;
 
             _currentSampleRate = sampleRate;
-
             var monoSamples = new List<float>();
+
+            // WaveViews über Samplerate informieren
+            _overviewView.SampleRate = _currentSampleRate;
+            _detailView.SampleRate = _currentSampleRate;
+
+            _currentSamples = monoSamples.ToArray();
+
+            _overviewView.Samples = _currentSamples;
+            _overviewView.VisibleStartSample = 0;
+            _overviewView.VisibleSampleCount = 0;
+
+            _detailView.Samples = _currentSamples;
+            _detailView.VisibleStartSample = 0;
+            _detailView.VisibleSampleCount = 0;
+
+
 
             // 1 Sekunde Puffer
             float[] buffer = new float[sampleRate * channels];
