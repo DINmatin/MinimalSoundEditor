@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Text.Json;
 using System.Windows.Forms;
 using static MinimalSoundEditor.MainForm;
 
@@ -84,7 +85,7 @@ namespace MinimalSoundEditor
         public MainForm()
         {
             InitializeComponent();
-            InitThemes();
+            LoadThemeSettings();
             ApplyTheme();
         }
 
@@ -379,6 +380,7 @@ namespace MinimalSoundEditor
                 {
                     _currentThemeMode = dlg.SelectedMode;
                     ApplyTheme();
+                    SaveThemeSettings();
                 }
                 else
                 {
@@ -1312,6 +1314,115 @@ namespace MinimalSoundEditor
             _isDirty = false;
             UpdateWindowTitle();
         }
+        private string GetSettingsFilePath()
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "MinimalSoundEditor");
+
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "settings.json");
+        }
+        private void SaveThemeSettings()
+        {
+            var data = new Dictionary<string, string>
+            {
+                ["CurrentMode"] = _currentThemeMode.ToString(),
+
+                // LIGHT
+                ["Light.FormBack"] = _lightTheme.FormBack.ToArgb().ToString(),
+                ["Light.ButtonBack"] = _lightTheme.ButtonBack.ToArgb().ToString(),
+                ["Light.ButtonFore"] = _lightTheme.ButtonFore.ToArgb().ToString(),
+                ["Light.ButtonBorder"] = _lightTheme.ButtonBorder.ToArgb().ToString(),
+                ["Light.Wave.Background"] = _lightTheme.Waveform.Background.ToArgb().ToString(),
+                ["Light.Wave.WaveColor"] = _lightTheme.Waveform.WaveColor.ToArgb().ToString(),
+                ["Light.Wave.ZeroLineColor"] = _lightTheme.Waveform.ZeroLineColor.ToArgb().ToString(),
+                ["Light.Wave.SelectionFill"] = _lightTheme.Waveform.SelectionFillColor.ToArgb().ToString(),
+                ["Light.Wave.SelectionEdge"] = _lightTheme.Waveform.SelectionEdgeColor.ToArgb().ToString(),
+                ["Light.Wave.Playhead"] = _lightTheme.Waveform.PlayheadColor.ToArgb().ToString(),
+                ["Light.Wave.Text"] = _lightTheme.Waveform.TextColor.ToArgb().ToString(),
+
+                // DARK
+                ["Dark.FormBack"] = _darkTheme.FormBack.ToArgb().ToString(),
+                ["Dark.ButtonBack"] = _darkTheme.ButtonBack.ToArgb().ToString(),
+                ["Dark.ButtonFore"] = _darkTheme.ButtonFore.ToArgb().ToString(),
+                ["Dark.ButtonBorder"] = _darkTheme.ButtonBorder.ToArgb().ToString(),
+                ["Dark.Wave.Background"] = _darkTheme.Waveform.Background.ToArgb().ToString(),
+                ["Dark.Wave.WaveColor"] = _darkTheme.Waveform.WaveColor.ToArgb().ToString(),
+                ["Dark.Wave.ZeroLineColor"] = _darkTheme.Waveform.ZeroLineColor.ToArgb().ToString(),
+                ["Dark.Wave.SelectionFill"] = _darkTheme.Waveform.SelectionFillColor.ToArgb().ToString(),
+                ["Dark.Wave.SelectionEdge"] = _darkTheme.Waveform.SelectionEdgeColor.ToArgb().ToString(),
+                ["Dark.Wave.Playhead"] = _darkTheme.Waveform.PlayheadColor.ToArgb().ToString(),
+                ["Dark.Wave.Text"] = _darkTheme.Waveform.TextColor.ToArgb().ToString()
+            };
+
+            var json = JsonSerializer.Serialize(
+                data,
+                new JsonSerializerOptions { WriteIndented = true });
+
+            File.WriteAllText(GetSettingsFilePath(), json);
+        }
+        private void LoadThemeSettings()
+        {
+            // Erstmal Defaults setzen
+            InitThemes();
+
+            string path = GetSettingsFilePath();
+            if (!File.Exists(path))
+                return;
+
+            try
+            {
+                var json = File.ReadAllText(path);
+                var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                if (data == null) return;
+
+                Color ParseColor(string key, Color fallback)
+                {
+                    if (data.TryGetValue(key, out var s) && int.TryParse(s, out int argb))
+                        return Color.FromArgb(argb);
+                    return fallback;
+                }
+
+                if (data.TryGetValue("CurrentMode", out var modeStr) &&
+                    Enum.TryParse<ThemeMode>(modeStr, out var mode))
+                {
+                    _currentThemeMode = mode;
+                }
+
+                // LIGHT
+                _lightTheme.FormBack = ParseColor("Light.FormBack", _lightTheme.FormBack);
+                _lightTheme.ButtonBack = ParseColor("Light.ButtonBack", _lightTheme.ButtonBack);
+                _lightTheme.ButtonFore = ParseColor("Light.ButtonFore", _lightTheme.ButtonFore);
+                _lightTheme.ButtonBorder = ParseColor("Light.ButtonBorder", _lightTheme.ButtonBorder);
+                _lightTheme.Waveform.Background = ParseColor("Light.Wave.Background", _lightTheme.Waveform.Background);
+                _lightTheme.Waveform.WaveColor = ParseColor("Light.Wave.WaveColor", _lightTheme.Waveform.WaveColor);
+                _lightTheme.Waveform.ZeroLineColor = ParseColor("Light.Wave.ZeroLineColor", _lightTheme.Waveform.ZeroLineColor);
+                _lightTheme.Waveform.SelectionFillColor = ParseColor("Light.Wave.SelectionFill", _lightTheme.Waveform.SelectionFillColor);
+                _lightTheme.Waveform.SelectionEdgeColor = ParseColor("Light.Wave.SelectionEdge", _lightTheme.Waveform.SelectionEdgeColor);
+                _lightTheme.Waveform.PlayheadColor = ParseColor("Light.Wave.Playhead", _lightTheme.Waveform.PlayheadColor);
+                _lightTheme.Waveform.TextColor = ParseColor("Light.Wave.Text", _lightTheme.Waveform.TextColor);
+
+                // DARK
+                _darkTheme.FormBack = ParseColor("Dark.FormBack", _darkTheme.FormBack);
+                _darkTheme.ButtonBack = ParseColor("Dark.ButtonBack", _darkTheme.ButtonBack);
+                _darkTheme.ButtonFore = ParseColor("Dark.ButtonFore", _darkTheme.ButtonFore);
+                _darkTheme.ButtonBorder = ParseColor("Dark.ButtonBorder", _darkTheme.ButtonBorder);
+                _darkTheme.Waveform.Background = ParseColor("Dark.Wave.Background", _darkTheme.Waveform.Background);
+                _darkTheme.Waveform.WaveColor = ParseColor("Dark.Wave.WaveColor", _darkTheme.Waveform.WaveColor);
+                _darkTheme.Waveform.ZeroLineColor = ParseColor("Dark.Wave.ZeroLineColor", _darkTheme.Waveform.ZeroLineColor);
+                _darkTheme.Waveform.SelectionFillColor = ParseColor("Dark.Wave.SelectionFill", _darkTheme.Waveform.SelectionFillColor);
+                _darkTheme.Waveform.SelectionEdgeColor = ParseColor("Dark.Wave.SelectionEdge", _darkTheme.Waveform.SelectionEdgeColor);
+                _darkTheme.Waveform.PlayheadColor = ParseColor("Dark.Wave.Playhead", _darkTheme.Waveform.PlayheadColor);
+                _darkTheme.Waveform.TextColor = ParseColor("Dark.Wave.Text", _darkTheme.Waveform.TextColor);
+            }
+            catch
+            {
+                // Im Zweifel lieber still auf Defaults bleiben,
+                // als beim Start abzustürzen.
+            }
+        }
+
         private void ExportSelectionAs()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
