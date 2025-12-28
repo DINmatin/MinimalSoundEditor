@@ -1,7 +1,9 @@
 using System;
 using System.Drawing;
+using System.IO;
+using System.Diagnostics;
 using System.Windows.Forms;
-using static MinimalSoundEditor.MainForm;   // für ThemeMode & ThemeDefinition
+using static MinimalSoundEditor.MainForm;
 
 namespace MinimalSoundEditor
 {
@@ -87,11 +89,21 @@ namespace MinimalSoundEditor
             };
             btnDefaults.Click += (s, e) => ResetCurrentThemeToDefaults();
 
+            // 👇 NEU: themes.json öffnen
+            var btnOpenJson = new Button
+            {
+                Text = "themes.json öffnen",
+                Left = 140,
+                Top = rowY + 20,
+                Width = 140
+            };
+            btnOpenJson.Click += (s, e) => OpenThemeJson();
+
             var btnOk = new Button
             {
                 Text = "OK",
                 DialogResult = DialogResult.OK,
-                Left = 180,
+                Left = 290,
                 Top = rowY + 20,
                 Width = 80
             };
@@ -99,21 +111,47 @@ namespace MinimalSoundEditor
             {
                 Text = "Cancel",
                 DialogResult = DialogResult.Cancel,
-                Left = 270,
+                Left = 290 + 90,
                 Top = rowY + 20,
                 Width = 80
             };
+
 
             Controls.AddRange(new Control[]
             {
                 lblMode, _comboMode,
                 _btnFormBack, _btnWaveBack, _btnWave, _btnSelection, _btnPlayhead,
-                btnDefaults, btnOk, btnCancel
+                btnDefaults, btnOpenJson, btnOk, btnCancel
             });
+
 
             AcceptButton = btnOk;
             CancelButton = btnCancel;
         }
+        private void OpenThemeJson()
+        {
+            try
+            {
+                // Stelle sicher, dass themes.json existiert und aktuell ist
+                MainForm.SaveThemeDefaults(force: true);
+
+                string path = MainForm.GetThemeDefaultsFilePath();
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "Konnte themes.json nicht öffnen:\n" + ex.Message,
+                    "themes.json",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
 
         private Button CreateColorRow(string label, int y, EventHandler click)
         {
