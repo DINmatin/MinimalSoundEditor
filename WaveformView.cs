@@ -19,6 +19,8 @@ namespace MinimalSoundEditor
 
         public class WaveformView : Control
         {
+            private const int RULER_HEIGHT = 14;   // oben: Zeit-Leiste
+
             private float[] _samples = Array.Empty<float>(); // nie null
             private float _zoom = 1.0f; // vertikaler Zoom
 
@@ -334,6 +336,12 @@ namespace MinimalSoundEditor
                 {
                     g.Clear(BackColor);
                 }
+                // Zeit-Leiste als eigener Balken oben
+                using (var rulerBrush = new SolidBrush(GetRulerBackColor()))
+                {
+                    g.FillRectangle(rulerBrush, 0, 0, width, RULER_HEIGHT);
+                }
+
                 // Zeit-Skala oben einblenden (Wavelab-Style light)
                 if (_sampleRate > 0)
                 {
@@ -409,12 +417,16 @@ namespace MinimalSoundEditor
                         }
 
                         using var brush = new SolidBrush(_theme.SelectionFillColor);
-                        g.FillRectangle(brush, x1, 0, x2 - x1, height);
+                        int selTop = RULER_HEIGHT;
+                        int selHeight = height - RULER_HEIGHT;
+                        if (selHeight < 0) selHeight = 0;
+                        g.FillRectangle(brush, x1, selTop, x2 - x1, selHeight);
 
                         using var edgePen = new Pen(_theme.SelectionEdgeColor, 2);
+                        g.DrawLine(edgePen, x1, selTop, x1, height);
+                        g.DrawLine(edgePen, x2, selTop, x2, height);
 
-                        g.DrawLine(edgePen, x1, 0, x1, height);
-                        g.DrawLine(edgePen, x2, 0, x2, height);
+
                     }
                 }
 
@@ -443,6 +455,15 @@ namespace MinimalSoundEditor
                     }
                 }
 
+            }
+            private Color GetRulerBackColor()
+            {
+                // leicht aufgehellte Hintergrundfarbe
+                var c = _theme.Background;
+                int r = Math.Min(255, c.R + 15);
+                int g = Math.Min(255, c.G + 15);
+                int b = Math.Min(255, c.B + 15);
+                return Color.FromArgb(r, g, b);
             }
 
             private void MarkPeaksDirty() => _peaksDirty = true;
@@ -655,11 +676,23 @@ namespace MinimalSoundEditor
                 base.OnMouseDown(e);
                 if (_samples == null || _samples.Length == 0) return;
 
-                _isMouseDown = true;
                 int totalSamples = _samples.Length;
 
-                // Klick-Sample
-                int idx = XToSampleIndex(e.X);
+                // 1) Klick in die Zeit-Leiste oben -> nur Playhead setzen, Selektion bleibt
+                if (e.Button == MouseButtons.Left && e.Y <= RULER_HEIGHT)
+                {
+                    int idx = XToSampleIndex(e.X);
+                    PlaybackSample = idx;
+                    PlaybackPositionChangedByClick?.Invoke(idx);
+                    Invalidate();
+                    return; // WICHTIG: nicht in die Auswahl-Logik fallen
+                }
+
+                // 2) Klick in die eigentliche Wellenform -> Selektion / Resize
+                _isMouseDown = true;
+
+                // Klick-Sample im aktuellen Sichtfenster
+                int clickSample = XToSampleIndex(e.X);
 
                 // Prüfen, ob wir eine Selektion haben und ob wir an einer Kante klicken
                 if (HasSelection)
@@ -701,18 +734,30 @@ namespace MinimalSoundEditor
                 // Sonst: neue Selektion beginnen
                 _dragMode = DragMode.NewSelection;
 
-                _selectionStartSample = idx;
-                _selectionEndSample = idx;
+                _selectionStartSample = clickSample;
+                _selectionEndSample = clickSample;
 
-                PlaybackSample = idx;
-                PlaybackPositionChangedByClick?.Invoke(idx);
+                PlaybackSample = clickSample;
+                PlaybackPositionChangedByClick?.Invoke(clickSample);
 
                 Invalidate();
             }
 
+
             protected override void OnMouseMove(MouseEventArgs e)
             {
                 base.OnMouseMove(e);
+
+                // In der Zeit-Leiste: keine Resize- / Auswahl-Logik
+                if (e.Y <= RULER_HEIGHT)
+                {
+                    if (!_isMouseDown)
+                    {
+                        Cursor = Cursors.Default;
+                        _isHoveringEdge = false;
+                    }
+                    return;
+                }
 
                 if (_samples == null || _samples.Length == 0)
                 {
