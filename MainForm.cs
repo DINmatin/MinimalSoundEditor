@@ -718,6 +718,13 @@ namespace MinimalSoundEditor
                 return true;
             }
 
+            // NUM 0 -> an den Anfang des ganzen Clips springen
+            if (keyData == Keys.NumPad0)
+            {
+                JumpToStartOfFile();
+                return true;
+            }
+
             // CTRL+NUM 0 -> View All (alles auszoomen)
             if (keyData == (Keys.Control | Keys.NumPad0))
             {
@@ -769,6 +776,16 @@ namespace MinimalSoundEditor
 
             return base.ProcessCmdKey(ref msg, keyData);
         }
+        private void JumpToStartOfFile()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            // nutzt deine bestehende Logik (inkl. Playhead+Restart)
+            JumpToSample(0, restartIfPlaying: true);
+        }
+
+
         public interface IPositionedSampleProvider : ISampleProvider
         {
             int PositionSamples { get; }
