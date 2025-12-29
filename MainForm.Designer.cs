@@ -53,6 +53,7 @@ namespace MinimalSoundEditor
             consoleToolStripMenuItem = new ToolStripMenuItem();
             sunsetToolStripMenuItem = new ToolStripMenuItem();
             _topPanel = new Panel();
+            _btnNormalize = new Button();
             _btnFadeOut = new Button();
             _btnFadeIn = new Button();
             _btnTrim = new Button();
@@ -71,7 +72,6 @@ namespace MinimalSoundEditor
             _overviewPanel = new Panel();
             _overviewView = new WaveformView();
             _detailView = new WaveformView();
-            _btnNormalize = new Button();
             _menuStrip.SuspendLayout();
             _topPanel.SuspendLayout();
             _overviewPanel.SuspendLayout();
@@ -252,6 +252,19 @@ namespace MinimalSoundEditor
             _topPanel.Size = new Size(1184, 46);
             _topPanel.TabIndex = 2;
             // 
+            // _btnNormalize
+            // 
+            _btnNormalize.BackgroundImage = Resource1.icon_normalize;
+            _btnNormalize.BackgroundImageLayout = ImageLayout.Stretch;
+            _btnNormalize.FlatAppearance.BorderSize = 0;
+            _btnNormalize.FlatStyle = FlatStyle.Flat;
+            _btnNormalize.Location = new Point(569, 6);
+            _btnNormalize.Name = "_btnNormalize";
+            _btnNormalize.Size = new Size(32, 32);
+            _btnNormalize.TabIndex = 15;
+            _btnNormalize.UseVisualStyleBackColor = true;
+            _btnNormalize.Click += _btnNormalize_Click;
+            // 
             // _btnFadeOut
             // 
             _btnFadeOut.BackgroundImage = Resource1.icon_fadeOut;
@@ -297,7 +310,7 @@ namespace MinimalSoundEditor
             _btnCompress.BackgroundImageLayout = ImageLayout.Stretch;
             _btnCompress.FlatAppearance.BorderSize = 0;
             _btnCompress.FlatStyle = FlatStyle.Flat;
-            _btnCompress.Location = new Point(569, 6);
+            _btnCompress.Location = new Point(531, 6);
             _btnCompress.Name = "_btnCompress";
             _btnCompress.Size = new Size(32, 32);
             _btnCompress.TabIndex = 11;
@@ -456,8 +469,10 @@ namespace MinimalSoundEditor
             // 
             // _overviewView
             // 
+            _overviewView.AllowHorizontalScroll = true;
             _overviewView.BackColor = Color.Black;
             _overviewView.Dock = DockStyle.Fill;
+            _overviewView.ExtraScrollSamples = 0;
             _overviewView.Location = new Point(0, 0);
             _overviewView.Name = "_overviewView";
             _overviewView.PlaybackSample = 0;
@@ -471,8 +486,10 @@ namespace MinimalSoundEditor
             // 
             // _detailView
             // 
+            _detailView.AllowHorizontalScroll = true;
             _detailView.BackColor = Color.Black;
             _detailView.Dock = DockStyle.Fill;
+            _detailView.ExtraScrollSamples = 0;
             _detailView.Location = new Point(0, 150);
             _detailView.Name = "_detailView";
             _detailView.PlaybackSample = 0;
@@ -483,19 +500,6 @@ namespace MinimalSoundEditor
             _detailView.VisibleSampleCount = 0;
             _detailView.VisibleStartSample = 0;
             _detailView.Zoom = 0.5F;
-            // 
-            // _btnNormalize
-            // 
-            _btnNormalize.BackgroundImage = Resource1.icon_normalize;
-            _btnNormalize.BackgroundImageLayout = ImageLayout.Stretch;
-            _btnNormalize.FlatAppearance.BorderSize = 0;
-            _btnNormalize.FlatStyle = FlatStyle.Flat;
-            _btnNormalize.Location = new Point(531, 8);
-            _btnNormalize.Name = "_btnNormalize";
-            _btnNormalize.Size = new Size(32, 32);
-            _btnNormalize.TabIndex = 15;
-            _btnNormalize.UseVisualStyleBackColor = true;
-            _btnNormalize.Click += _btnNormalize_Click;
             // 
             // MainForm
             // 
