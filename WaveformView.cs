@@ -209,12 +209,14 @@ namespace MinimalSoundEditor
             get => _visibleStartSample;
             set
             {
-                _visibleStartSample = Math.Max(0, value);
+                // Darf jetzt auch NEGATIV sein = „Luft vor dem Clip“
+                _visibleStartSample = value;
                 MarkPeaksDirty();
                 MarkBitmapDirty();
                 Invalidate();
             }
         }
+
 
         /// <summary>
         /// Anzahl der sichtbaren Samples. 0 oder kleiner = „ganzer Track ab VisibleStart“.
@@ -295,12 +297,13 @@ namespace MinimalSoundEditor
             }
 
             // Sichtfenster berechnen
-            // -> Darf jetzt ÜBER das Dateiende hinausreichen.
-            // Alles hinter totalSamples wird einfach als „Stille“ gezeichnet.
-            int viewStart = Math.Max(0, _visibleStartSample);
+            // Darf jetzt auch VOR 0 und NACH dem Clip liegen.
+            // Alles außerhalb [0, totalSamples) wird als Stille gezeichnet.
+            int viewStart = _visibleStartSample;
             int viewCount = _visibleSampleCount > 0
                 ? _visibleSampleCount
-                : Math.Max(0, totalSamples - viewStart);
+                : Math.Max(totalSamples, 1);
+
 
             if (viewCount <= 0)
             {
@@ -616,10 +619,11 @@ namespace MinimalSoundEditor
             if (width <= 1 || totalSamples == 0)
                 return 0;
 
-            int viewStart = Math.Max(0, _visibleStartSample);
+            int viewStart = _visibleStartSample;
             int viewCount = _visibleSampleCount > 0
                 ? _visibleSampleCount
-                : Math.Max(0, totalSamples - viewStart);
+                : Math.Max(totalSamples, 1);
+
 
             if (viewCount <= 0)
                 return 0;
@@ -648,10 +652,11 @@ namespace MinimalSoundEditor
             if (width <= 1 || totalSamples == 0)
                 return 0;
 
-            int viewStart = Math.Max(0, _visibleStartSample);
+            int viewStart = _visibleStartSample;
             int viewCount = _visibleSampleCount > 0
                 ? _visibleSampleCount
-                : Math.Max(0, totalSamples - viewStart);
+                : Math.Max(totalSamples, 1);
+
 
             if (viewCount <= 0)
                 return 0;
@@ -760,11 +765,14 @@ namespace MinimalSoundEditor
             if (width <= 0 || totalSamples <= 0)
                 return;
 
-            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
-            int maxCount = totalSamples - viewStart;
+            // Sichtfenster berechnen
+            // Darf jetzt auch VOR 0 und NACH dem Clip liegen.
+            // Alles außerhalb [0, totalSamples) wird als Stille gezeichnet.
+            int viewStart = _visibleStartSample;
             int viewCount = _visibleSampleCount > 0
-                ? Math.Min(_visibleSampleCount, maxCount)
-                : maxCount;
+                ? _visibleSampleCount
+                : Math.Max(totalSamples, 1);
+
 
             if (viewCount <= 0)
                 return;
@@ -774,10 +782,9 @@ namespace MinimalSoundEditor
 
             bool changed = false;
 
-            if (e.X <= edgePixels && viewStart > 0)
+            if (e.X <= edgePixels)
             {
-                int newStart = viewStart - scrollDeltaSamples;
-                if (newStart < 0) newStart = 0;
+                int newStart = viewStart - scrollDeltaSamples;   // darf jetzt negativ werden
                 _visibleStartSample = newStart;
 
                 if (_visibleSampleCount <= 0)
@@ -785,6 +792,7 @@ namespace MinimalSoundEditor
 
                 changed = true;
             }
+
             else if (e.X >= width - edgePixels && viewStart + viewCount < totalSamples)
             {
                 int maxStart = Math.Max(0, totalSamples - viewCount);
@@ -947,11 +955,11 @@ namespace MinimalSoundEditor
             if (width <= 0 || totalSamples <= 0)
                 return;
 
-            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
-            int maxCount = totalSamples - viewStart;
+            int viewStart = _visibleStartSample;
             int viewCount = _visibleSampleCount > 0
-                ? Math.Min(_visibleSampleCount, maxCount)
-                : maxCount;
+                ? _visibleSampleCount
+                : Math.Max(totalSamples, 1);
+
 
             if (viewCount <= 0)
                 return;
@@ -963,9 +971,10 @@ namespace MinimalSoundEditor
 
             if (e.Delta > 0)
             {
-                // Rad nach oben -> nach links
-                newStart = Math.Max(0, viewStart - scrollDeltaSamples);
+                // Rad nach oben -> nach links scrollen (jetzt auch ins Minus erlaubt)
+                newStart = viewStart - scrollDeltaSamples;
             }
+
             else if (e.Delta < 0)
             {
                 // Rad nach unten -> nach rechts
