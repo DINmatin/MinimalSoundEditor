@@ -318,6 +318,7 @@ namespace MinimalSoundEditor
 
 
 
+
             if (viewCount <= 0)
             {
                 g.Clear(BackColor);
@@ -360,6 +361,51 @@ namespace MinimalSoundEditor
             {
                 g.Clear(BackColor);
             }
+            // ---------------------------------------------
+            // Luft-Bereiche einfärben (links < 0, rechts > total)
+            // -> jetzt NACH der Waveform, aber nur im Wellenform-Bereich
+            // ---------------------------------------------
+            if (ClientSize.Width > 0 && viewCount > 0)
+            {
+                int contentTop = RULER_HEIGHT;
+                int contentHeight = height - contentTop;
+                if (contentHeight < 0) contentHeight = 0;
+
+                // 50 % dunkler als die Wave-Hintergrundfarbe
+                var baseBg = _theme?.Background ?? BackColor;
+                var dark = DarkenColor(baseBg, 0.5f);
+
+                double pxPerSample = (double)ClientSize.Width / viewCount;
+
+                // ===== LINKER BEREICH (t < 0) =====
+                if (viewStart < 0)
+                {
+                    int samplesLeft = -viewStart;
+                    int px = (int)(samplesLeft * pxPerSample);
+                    if (px > 0)
+                    {
+                        using (var b = new SolidBrush(dark))
+                            g.FillRectangle(b, 0, contentTop, px, contentHeight);
+                    }
+                }
+
+                // ===== RECHTER BEREICH (t > clipEnde) =====
+                if (viewStart + viewCount > totalSamples)
+                {
+                    int overflow = (viewStart + viewCount) - totalSamples;
+                    int px = (int)(overflow * pxPerSample);
+                    if (px > 0)
+                    {
+                        int startX = ClientSize.Width - px;
+                        if (startX < 0) startX = 0;
+
+                        using (var b = new SolidBrush(dark))
+                            g.FillRectangle(b, startX, contentTop,
+                                            ClientSize.Width - startX, contentHeight);
+                    }
+                }
+            }
+
             // Zeit-Leiste als eigener Balken oben
             using (var rulerBrush = new SolidBrush(GetRulerBackColor()))
             {
@@ -489,6 +535,23 @@ namespace MinimalSoundEditor
             int b = Math.Min(255, c.B + 15);
             return Color.FromArgb(r, g, b);
         }
+        private static Color DarkenColor(Color c, float factor)
+        {
+            // factor 0..1: 1 = unverändert, 0.5 = 50 % dunkler
+            if (factor < 0f) factor = 0f;
+            if (factor > 1f) factor = 1f;
+
+            int r = (int)(c.R * factor);
+            int g = (int)(c.G * factor);
+            int b = (int)(c.B * factor);
+
+            if (r < 0) r = 0; if (r > 255) r = 255;
+            if (g < 0) g = 0; if (g > 255) g = 255;
+            if (b < 0) b = 0; if (b > 255) b = 255;
+
+            return Color.FromArgb(c.A, r, g, b);
+        }
+
 
         private void MarkPeaksDirty() => _peaksDirty = true;
         private void MarkBitmapDirty() => _bitmapDirty = true;
