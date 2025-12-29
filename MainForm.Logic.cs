@@ -717,23 +717,26 @@ namespace MinimalSoundEditor
 
             int selectionLength = endSample - startSample;
 
-            // 1 Sekunde Puffer links + rechts (Fallback 44.1k)
+            // 1 Sekunde in Samples (Fallback 44.1k)
             int marginSamples = _currentSampleRate > 0 ? _currentSampleRate : 44100;
 
+            // DetailView weiß jetzt, wie weit links/rechts gescrollt werden darf
+            _detailView.ExtraScrollSamples = marginSamples;
+
             // Sichtfenster: Auswahl + 1s davor + 1s danach
-            // Darf VOR 0 und HINTER dem Clip liegen – WaveformView zeichnet dort Stille.
-            int viewStart = startSample - marginSamples;              // kann NEGATIV sein
+            int viewStart = startSample - marginSamples;        // darf NEGATIV sein
             int viewCount = selectionLength + marginSamples * 2;
 
             if (viewCount <= 0)
-                viewCount = selectionLength; // Fallback, sollte praktisch nie vorkommen
+                viewCount = selectionLength;
 
             _detailView.VisibleStartSample = viewStart;
             _detailView.VisibleSampleCount = viewCount;
 
-            // Auswahl selbst bleibt exakt, nur Darstellung hat Luft
+            // Auswahl im DetailView selbst beibehalten
             _detailView.SetSelection(startSample, endSample, raiseEvent: false);
         }
+
 
 
 

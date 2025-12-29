@@ -202,20 +202,32 @@ namespace MinimalSoundEditor
         }
 
         /// <summary>
-        /// Beginn des sichtbaren Bereichs (Sampleindex, global).
+        /// Erster sichtbarer Sampleindex. Darf NEGATIV sein (Luft vor dem Clip),
+        /// wird aber auf [-_extraScrollSamples, ...] begrenzt.
         /// </summary>
         public int VisibleStartSample
         {
             get => _visibleStartSample;
             set
             {
-                // Darf jetzt auch NEGATIV sein = „Luft vor dem Clip“
-                _visibleStartSample = value;
+                int minStart = -_extraScrollSamples;
+                _visibleStartSample = value < minStart ? minStart : value;
                 MarkPeaksDirty();
                 MarkBitmapDirty();
                 Invalidate();
             }
         }
+        /// <summary>
+        /// Wie viele Samples man maximal VOR und NACH dem Clip scrollen darf.
+        /// Wird typischerweise auf "1 Sekunde in Samples" gesetzt.
+        /// </summary>
+        private int _extraScrollSamples = 0;
+        public int ExtraScrollSamples
+        {
+            get => _extraScrollSamples;
+            set => _extraScrollSamples = Math.Max(0, value);
+        }
+
 
 
         /// <summary>
@@ -297,12 +309,13 @@ namespace MinimalSoundEditor
             }
 
             // Sichtfenster berechnen
-            // Darf jetzt auch VOR 0 und NACH dem Clip liegen.
+            // Darf VOR 0 und NACH dem Clip liegen.
             // Alles außerhalb [0, totalSamples) wird als Stille gezeichnet.
             int viewStart = _visibleStartSample;
             int viewCount = _visibleSampleCount > 0
                 ? _visibleSampleCount
                 : Math.Max(totalSamples, 1);
+
 
 
             if (viewCount <= 0)
@@ -782,9 +795,12 @@ namespace MinimalSoundEditor
 
             bool changed = false;
 
+            // --- Links: bis maximal -_extraScrollSamples ---
             if (e.X <= edgePixels)
             {
-                int newStart = viewStart - scrollDeltaSamples;   // darf jetzt negativ werden
+                int minStart = -_extraScrollSamples;
+                int newStart = viewStart - scrollDeltaSamples;
+                if (newStart < minStart) newStart = minStart;
                 _visibleStartSample = newStart;
 
                 if (_visibleSampleCount <= 0)
@@ -792,10 +808,13 @@ namespace MinimalSoundEditor
 
                 changed = true;
             }
-
-            else if (e.X >= width - edgePixels && viewStart + viewCount < totalSamples)
+            // --- Rechts: bis maximal ClipEnde + _extraScrollSamples ---
+            else if (e.X >= width - edgePixels)
             {
-                int maxStart = Math.Max(0, totalSamples - viewCount);
+                int minStart = -_extraScrollSamples;
+                int maxStart = totalSamples + _extraScrollSamples - viewCount;
+                if (maxStart < minStart) maxStart = minStart;
+
                 int newStart = viewStart + scrollDeltaSamples;
                 if (newStart > maxStart) newStart = maxStart;
                 _visibleStartSample = newStart;
@@ -812,6 +831,7 @@ namespace MinimalSoundEditor
                 MarkBitmapDirty();
                 Invalidate();
             }
+
         }
 
 
@@ -961,6 +981,7 @@ namespace MinimalSoundEditor
                 : Math.Max(totalSamples, 1);
 
 
+
             if (viewCount <= 0)
                 return;
 
@@ -968,18 +989,21 @@ namespace MinimalSoundEditor
             int scrollDeltaSamples = Math.Max(1, viewCount / 10);
 
             int newStart = viewStart;
+            int minStart = -_extraScrollSamples;
+            int maxStart = totalSamples + _extraScrollSamples - viewCount;
+            if (maxStart < minStart) maxStart = minStart;
 
             if (e.Delta > 0)
             {
-                // Rad nach oben -> nach links scrollen (jetzt auch ins Minus erlaubt)
+                // Rad nach oben -> nach links
                 newStart = viewStart - scrollDeltaSamples;
+                if (newStart < minStart) newStart = minStart;
             }
-
             else if (e.Delta < 0)
             {
                 // Rad nach unten -> nach rechts
-                int maxStart = Math.Max(0, totalSamples - viewCount);
-                newStart = Math.Min(maxStart, viewStart + scrollDeltaSamples);
+                newStart = viewStart + scrollDeltaSamples;
+                if (newStart > maxStart) newStart = maxStart;
             }
 
             if (newStart != viewStart)
@@ -993,6 +1017,7 @@ namespace MinimalSoundEditor
                 MarkBitmapDirty();
                 Invalidate();
             }
+
         }
 
 
