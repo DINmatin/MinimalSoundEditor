@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 
@@ -78,6 +79,10 @@ namespace MinimalSoundEditor
                 Invalidate();
             }
         }
+        /// <summary>
+        /// Zeigt links eine einfache dB-Skala an (nur im Detail-View sinnvoll).
+        /// </summary>
+        public bool ShowDbScale { get; set; }
 
 
         /// <summary>
@@ -295,18 +300,19 @@ namespace MinimalSoundEditor
             var samples = _samples ?? Array.Empty<float>();
             int totalSamples = samples.Length;
 
-            if (totalSamples == 0 || width <= 1 || height <= 1)
+            // zu klein? => nix machen
+            if (width <= 1 || height <= 1)
             {
-                g.Clear(BackColor);
-
-                using var b = new SolidBrush(_theme.TextColor);
-                const string msg = "Keine Audiodatei geladen";
-                var size = g.MeasureString(msg, Font);
-                g.DrawString(msg, Font, b,
-                    (ClientSize.Width - size.Width) / 2f,
-                    (ClientSize.Height - size.Height) / 2f);
                 return;
             }
+
+            // keine Samples => Demo-Timeline zeichnen (0–5 s) und raus
+            if (totalSamples == 0)
+            {
+                DrawEmptyTimeline(g, width, height);
+                return;
+            }
+
 
             // Sichtfenster berechnen
             // Darf VOR 0 und NACH dem Clip liegen.
@@ -451,7 +457,11 @@ namespace MinimalSoundEditor
                     }
                 }
             }
-
+            // dB-Skala links im Wellenform-Bereich
+            if (ShowDbScale)
+            {
+                DrawDbScale(g, width, height);
+            }
             // Auswahl zeichnen (Overlay)
             if (HasSelection)
             {
@@ -1083,6 +1093,81 @@ namespace MinimalSoundEditor
 
         }
 
+        private void DrawEmptyTimeline(Graphics g, int width, int height)
+        {
+            // Gesamt-Hintergrund
+            g.Clear(BackColor);
+
+            int contentTop = RULER_HEIGHT;
+            int contentHeight = height - contentTop;
+            if (contentHeight < 0) contentHeight = 0;
+
+            // Wellenform-Bereich einfärben
+            using (var waveBg = new SolidBrush(_theme.Background))
+            {
+                g.FillRectangle(waveBg, 0, contentTop, width, contentHeight);
+            }
+
+            // horizontale Nulllinie in der Mitte
+            if (contentHeight > 0)
+            {
+                float midY = contentTop + contentHeight / 2f;
+                using var zeroPen = new Pen(_theme.ZeroLineColor, 1);
+                g.DrawLine(zeroPen, 0, midY, width, midY);
+            }
+
+            // Zeit-Leiste oben
+            using (var rulerBrush = new SolidBrush(GetRulerBackColor()))
+            {
+                g.FillRectangle(rulerBrush, 0, 0, width, RULER_HEIGHT);
+            }
+
+            // 0–5 Sekunden Achse
+            double visibleSeconds = 5.0;
+            double step = GetNiceTimeStep(visibleSeconds);
+            int rulerHeight = 12;
+
+            using var tickPen = new Pen(_theme.ZeroLineColor, 1);
+            using var textBrush = new SolidBrush(_theme.TextColor);
+            var font = this.Font;
+
+            for (double t = 0.0; t <= visibleSeconds + 1e-6; t += step)
+            {
+                double rel = t / visibleSeconds; // 0..1
+                float x = (float)(rel * width);
+                if (x < 0 || x > width) continue;
+
+                // Tick
+                g.DrawLine(tickPen, x, 0, x, rulerHeight);
+
+                // Beschriftung
+                string label = (t < 10.0) ? $"{t:0.0}s" : $"{t:0}s";
+                var size = g.MeasureString(label, font);
+                float textX = x - size.Width / 2f;
+                float textY = rulerHeight;
+
+                if (textX + size.Width >= 0 && textX <= width)
+                    g.DrawString(label, font, textBrush, textX, textY);
+            }
+
+            // Vertikaler „Meridian“ in der Mitte
+            if (contentHeight > 0)
+            {
+                float centerX = width / 2f;
+                using var meridianPen = new Pen(_theme.ZeroLineColor, 1)
+                {
+                    DashStyle = DashStyle.Dash
+                };
+                g.DrawLine(meridianPen, centerX, contentTop, centerX, height);
+            }
+
+            // Kleiner Hinweistext
+            const string msg = "Keine Audiodatei geladen";
+            var msgSize = g.MeasureString(msg, Font);
+            g.DrawString(msg, Font, textBrush,
+                (width - msgSize.Width) / 2f,
+                contentTop + contentHeight / 2f - msgSize.Height / 2f);
+        }
 
 
         // --------------------------------------------------------------------
@@ -1174,6 +1259,56 @@ namespace MinimalSoundEditor
             MarkBitmapDirty();
             Invalidate();
         }
+
+        private void DrawDbScale(Graphics g, int width, int height)
+        {
+            int contentTop = RULER_HEIGHT;
+            int contentHeight = height - contentTop;
+            if (contentHeight <= 0) return;
+
+            const int margin = 40; // Breite der Skala links
+
+            float midY = contentTop + contentHeight / 2f;
+            float scaleY = _zoom * (contentHeight / 2f - 4);
+            if (scaleY <= 1f) scaleY = (contentHeight / 2f - 4);
+
+            // Hintergrundstreifen für die Skala
+            using (var bgBrush = new SolidBrush(Color.FromArgb(220, _theme.Background)))
+            {
+                g.FillRectangle(bgBrush, 0, contentTop, margin, contentHeight);
+            }
+
+            using var linePen = new Pen(_theme.ZeroLineColor, 1);
+            using var textBrush = new SolidBrush(_theme.TextColor);
+            var font = this.Font;
+
+            // ein paar typische dB-Werte
+            int[] dbTicks = new[] { 0, -3, -6, -9, -12, -18, -24 };
+
+            foreach (int db in dbTicks)
+            {
+                double amp = Math.Pow(10.0, db / 20.0); // 0 dB -> 1.0, -6 dB -> ~0.5
+                float dy = (float)(amp * scaleY);
+                float y = midY - dy; // obere Hälfte
+
+                if (y < contentTop || y > contentTop + contentHeight) continue;
+
+                // Tick-Linie
+                g.DrawLine(linePen, 0, y, margin - 6, y);
+
+                // Label
+                string label = db == 0 ? "0 dB" : $"{db} dB";
+                var size = g.MeasureString(label, font);
+                float textX = 2;
+                float textY = y - size.Height / 2f;
+
+                g.DrawString(label, font, textBrush, textX, textY);
+            }
+
+            // Null-Linie (zur Sicherheit nochmal, passt zu deiner Wave-Null)
+            g.DrawLine(linePen, 0, midY, margin - 2, midY);
+        }
+
     }
 }
 

@@ -30,6 +30,10 @@ namespace MinimalSoundEditor
             _overviewView.AllowHorizontalScroll = false;
             _detailView.AllowHorizontalScroll = true;
 
+            // Anzeige-Optionen
+            _overviewView.ShowDbScale = false;
+            _detailView.ShowDbScale = true;
+
             // === DETAIL (unten) ===
             _detailView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
             _detailView.SelectionChanged += DetailView_SelectionChanged;
