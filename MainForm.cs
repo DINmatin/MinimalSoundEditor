@@ -20,9 +20,8 @@ namespace MinimalSoundEditor
         private WaveformView _overviewView;
         private WaveformView _detailView;
         private Button _btnOpen;
-        private Button _btnZoomIn;
-        private Button _btnZoomOut;
         private Button _btnDeleteSelection;
+        private Button _btnUndo;
         private Button _btnPlay;
         private Button _btnStop;
         private Label _lblInfo;
@@ -121,6 +120,9 @@ namespace MinimalSoundEditor
             Height = 600;
             KeyPreview = true;
 
+            const int toolbarTop = 6;
+            const int toolbarHeight = 36;
+
             // === OVERVIEW (oben, klein) ===
             _overviewView = new WaveformView
             {
@@ -150,73 +152,67 @@ namespace MinimalSoundEditor
             // === TOP BUTTON BAR ===
             _btnOpen = new Button
             {
-                Text = "Öffnen...",
-                Width = 90,
+                Text = "",
+                Width = toolbarHeight,
                 Left = 10,
-                Top = 10
+                Top = toolbarTop,
+                Height = toolbarHeight
             };
             _btnOpen.Click += BtnOpen_Click;
 
-            _btnZoomIn = new Button
-            {
-                Text = "Zoom +",
-                Width = 80,
-                Left = 110,
-                Top = 10
-            };
-            _btnZoomIn.Click += (s, e) =>
-            {
-                _detailView.Zoom *= 1.5f;
-                UpdateInfo();
-            };
-
-            _btnZoomOut = new Button
-            {
-                Text = "Zoom -",
-                Width = 80,
-                Left = 200,
-                Top = 10
-            };
-            _btnZoomOut.Click += (s, e) =>
-            {
-                _detailView.Zoom /= 1.5f;
-                UpdateInfo();
-            };
+           
 
             _btnDeleteSelection = new Button
             {
-                Text = "Auswahl löschen",
-                Width = 120,
+                Text = "",
+                Width = toolbarHeight,
                 Left = 290,
-                Top = 10
+                Top = toolbarTop,
+                Height = toolbarHeight
             };
             _btnDeleteSelection.Click += BtnDeleteSelection_Click;
 
+
+            _btnUndo = new Button
+            {
+                Text = "",
+                Width = toolbarHeight,
+                Left = 290 + 42,
+                Top = toolbarTop,
+                Height = toolbarHeight
+            };
+            _btnUndo.Click += BtnUndo_Click;            // ✅ richtig
+
+
             _btnPlay = new Button
             {
-                Text = "Play",
-                Width = 70,
-                Left = 420,
-                Top = 10
+                Text = "",
+                Width = toolbarHeight,
+                Top = toolbarTop,
+                Height = toolbarHeight,
+                BackColor = Color.Transparent,
+                Left = 420
             };
             _btnPlay.Click += BtnPlay_Click;
 
             _btnStop = new Button
             {
-                Text = "Stop",
-                Width = 70,
-                Left = 500,
-                Top = 10
+                Text = "",
+                Width = toolbarHeight,
+                Left = 420+42,
+                Top = toolbarTop,
+                Height = toolbarHeight
             };
             _btnStop.Click += BtnStop_Click;
 
             _chkLoop = new CheckBox
             {
                 Appearance = Appearance.Button,
-                Text = "Loop",
-                Width = 70,
-                Left = 580,
-                Top = 10,
+                Text = "",
+                Width = toolbarHeight,
+                Left = 420+42+42,
+                Top = toolbarTop,
+                Height = toolbarHeight,
                 TextAlign = ContentAlignment.MiddleCenter
             };
             _chkLoop.CheckedChanged += (s, e) =>
@@ -226,12 +222,46 @@ namespace MinimalSoundEditor
 
             _btnTheme = new Button
             {
-                Text = "Theme...",
-                Width = 80,
+                Text = "",
+                Width = toolbarHeight,
                 Left = 660,
-                Top = 10
+                Top = toolbarTop,
+                Height = toolbarHeight
             };
             _btnTheme.Click += (s, e) => OpenThemeSettings();
+            // OPEN (kannst du später auch ein schönes „ordner“-Icon spendieren)
+            StyleToolbarButton(_btnOpen, Resource1.icon_openFile, "");
+
+            // DELETE SELECTION
+            StyleToolbarButton(_btnDeleteSelection, Resource1.icon_del, "");
+
+            // UNDO
+            StyleToolbarButton(_btnUndo, Resource1.icon_undo, "");
+
+            // PLAY
+            StyleToolbarButton(_btnPlay, Resource1.icon_play, "");
+
+            // STOP
+            StyleToolbarButton(_btnStop, Resource1.icon_stop, "");
+
+            // LOOP – CheckBox als Button mit Icon
+            {
+                Image icon = resizeIconImage( Resource1.icon_loop);
+
+                _chkLoop.Image = icon;
+                _chkLoop.ImageAlign = ContentAlignment.MiddleLeft;
+                _chkLoop.Text = "";
+                _chkLoop.TextImageRelation = TextImageRelation.ImageAboveText;
+                _chkLoop.Padding = new Padding(1, 0, 1, 0);
+                _chkLoop.FlatStyle = FlatStyle.Flat;
+                _chkLoop.FlatAppearance.BorderSize = 0;
+                _chkLoop.BackColor = Color.Transparent;
+                _chkLoop.FlatAppearance.MouseOverBackColor = Color.Pink;
+                _chkLoop.FlatAppearance.CheckedBackColor = Color.MediumPurple;
+            }
+
+            // STOP
+            StyleToolbarButton(_btnTheme, Resource1.icon_themes, "");
 
             _lblInfo = new Label
             {
@@ -243,15 +273,14 @@ namespace MinimalSoundEditor
 
             _topPanel = new Panel
             {
-                Height = 45,
+                Height = toolbarTop + toolbarHeight + 4, // z.B. 6 + 36 + 4 = 46
                 Dock = DockStyle.Top
             };
             _topPanel.Controls.AddRange(new Control[]
             {
         _btnOpen,
-        _btnZoomIn,
-        _btnZoomOut,
         _btnDeleteSelection,
+        _btnUndo,
         _btnPlay,
         _btnStop,
         _chkLoop,
@@ -305,23 +334,7 @@ namespace MinimalSoundEditor
             // --- Ansicht ---
             var miView = new ToolStripMenuItem("&Ansicht");
 
-            var miViewZoomIn = new ToolStripMenuItem("Zoom +", null, (s, e) =>
-            {
-                _detailView.Zoom *= 1.5f;
-                UpdateInfo();
-            })
-            {
-                ShortcutKeys = Keys.Control | Keys.Add
-            };
-
-            var miViewZoomOut = new ToolStripMenuItem("Zoom -", null, (s, e) =>
-            {
-                _detailView.Zoom /= 1.5f;
-                UpdateInfo();
-            })
-            {
-                ShortcutKeys = Keys.Control | Keys.Subtract
-            };
+            
 
             var miViewZoomAll = new ToolStripMenuItem("Alles anzeigen", null, (s, e) => ZoomAll())
             {
@@ -330,9 +343,6 @@ namespace MinimalSoundEditor
 
             miView.DropDownItems.AddRange(new ToolStripItem[]
             {
-        miViewZoomIn,
-        miViewZoomOut,
-        new ToolStripSeparator(),
         miViewZoomAll
             });
 
@@ -413,6 +423,41 @@ namespace MinimalSoundEditor
 
             FormClosing += MainForm_FormClosing;
             Resize += MainForm_Resize;
+        }
+        private Image resizeIconImage(Image icon)
+        {
+            Image img = icon;
+            if (icon.Width > 32 || icon.Height > 32)
+            {
+                img = new Bitmap(icon, new Size(24, 24));
+            }
+
+            return img;
+        }
+        private void StyleToolbarButton(Button btn, Image icon, string text = null)
+        {
+            // Icon ggf. auf 24x24 runterskalieren – deine PNGs sind ja relativ groß
+            Image img = resizeIconImage(icon);
+           
+            btn.Image = img;
+            btn.ImageAlign = ContentAlignment.MiddleLeft;
+
+            if (!string.IsNullOrEmpty(text))
+            {
+                btn.Text = text;
+                btn.TextImageRelation = TextImageRelation.ImageAboveText;
+                btn.Padding = new Padding(1, 0, 1, 0);
+            }
+            else
+            {
+                // Nur Icon
+                btn.Text = "";
+            }
+
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.CheckedBackColor = Color.Black;
+            btn.BackColor = Color.Transparent;
         }
 
         private void InitThemes()
@@ -945,12 +990,12 @@ namespace MinimalSoundEditor
 
             if (sampleRate == 0 || sampleCount == 0)
             {
-                _lblInfo.Text = $"Samples: {_currentSamples.Length} | Zoom: {_detailView.Zoom:0.00}x";
+                _lblInfo.Text = $"Samples: {_currentSamples.Length}";
                 return;
             }
 
             _trackDurationSeconds = sampleCount / (double)sampleRate;
-            _lblInfo.Text = $"Samples: {sampleCount} | Dauer: {_trackDurationSeconds:0.00} s | Zoom: {_detailView.Zoom:0.00}x";
+            _lblInfo.Text = $"Samples: {sampleCount} | Dauer: {_trackDurationSeconds:0.00} s";
         }
 
         //private void UpdatePlaybackTimerInterval()
@@ -979,6 +1024,10 @@ namespace MinimalSoundEditor
                 _playbackTimer.Interval = 16;   // ~60 FPS
         }
 
+        private void BtnUndo_Click(object sender, EventArgs e)
+        {
+            Undo();
+        }
         private void BtnDeleteSelection_Click(object sender, EventArgs e)
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1160,7 +1209,7 @@ namespace MinimalSoundEditor
             if (_waveOut == null)
                 return;
 
-            try { _waveOut.Stop(); } catch { }
+            try { _waveOut.Stop(); _playbackTimer?.Stop(); } catch { }
             _playbackTimer?.Stop();
         }
 
@@ -1280,52 +1329,81 @@ namespace MinimalSoundEditor
             _isDirty = true;
             UpdateWindowTitle();
         }
-        private bool TryGetNormalizeTarget(out float target)
+        private bool TryGetNormalizeTarget(out float targetLinear)
         {
-            target = 1.0f;
+            // Standard: -2 dBFS
+            targetLinear = 1.0f;
 
             using (var form = new Form())
-            using (var nud = new NumericUpDown())
+            using (var nudDb = new NumericUpDown())
             using (var lbl = new Label())
+            using (var btn0dB = new Button())
+            using (var btnMinus2dB = new Button())
+            using (var btnMinus6dB = new Button())
             using (var btnOk = new Button())
             using (var btnCancel = new Button())
             {
-                form.Text = "Bereich normalisieren";
+                form.Text = "Bereich normalisieren (Peak)";
                 form.FormBorderStyle = FormBorderStyle.FixedDialog;
                 form.StartPosition = FormStartPosition.CenterParent;
-                form.ClientSize = new System.Drawing.Size(260, 120);
+                form.ClientSize = new System.Drawing.Size(320, 160);
                 form.MinimizeBox = false;
                 form.MaximizeBox = false;
                 form.ShowInTaskbar = false;
 
-                lbl.Text = "Ziel-Pegel (Peak, 0.1 - 2.0):";
+                // Label
+                lbl.Text = "Ziel-Pegel (dBFS, 0 bis -60 dB):";
                 lbl.AutoSize = true;
                 lbl.Left = 10;
                 lbl.Top = 10;
 
-                nud.Left = 10;
-                nud.Top = 35;
-                nud.Width = 120;
-                nud.DecimalPlaces = 2;
-                nud.Minimum = 0.10M;
-                nud.Maximum = 2.00M;
-                nud.Increment = 0.05M;
-                nud.Value = 1.00M;
+                // NumericUpDown für dB
+                nudDb.Left = 10;
+                nudDb.Top = 35;
+                nudDb.Width = 80;
+                nudDb.DecimalPlaces = 1;
+                nudDb.Minimum = -60.0M;
+                nudDb.Maximum = 0.0M;
+                nudDb.Increment = 0.5M;
+                nudDb.Value = -2.0M; // üblicher Standard
 
-                btnOk.Text = "OK";
+                // Preset-Buttons
+                btn0dB.Text = "0 dB";
+                btn0dB.Left = 110;
+                btn0dB.Top = 30;
+                btn0dB.Width = 60;
+                btn0dB.Click += (s, e) => nudDb.Value = 0.0M;
+
+                btnMinus2dB.Text = "-2 dB";
+                btnMinus2dB.Left = 180;
+                btnMinus2dB.Top = 30;
+                btnMinus2dB.Width = 60;
+                btnMinus2dB.Click += (s, e) => nudDb.Value = -2.0M;
+
+                btnMinus6dB.Text = "-6 dB";
+                btnMinus6dB.Left = 250;
+                btnMinus6dB.Top = 30;
+                btnMinus6dB.Width = 60;
+                btnMinus6dB.Click += (s, e) => nudDb.Value = -6.0M;
+
+                // OK / Cancel
+                btnOk.Text = "Normalize";
                 btnOk.DialogResult = DialogResult.OK;
-                btnOk.Left = 40;
-                btnOk.Top = 75;
-                btnOk.Width = 80;
+                btnOk.Left = 70;
+                btnOk.Top = 100;
+                btnOk.Width = 90;
 
-                btnCancel.Text = "Abbrechen";
+                btnCancel.Text = "Cancel";
                 btnCancel.DialogResult = DialogResult.Cancel;
-                btnCancel.Left = 130;
-                btnCancel.Top = 75;
-                btnCancel.Width = 100;
+                btnCancel.Left = 170;
+                btnCancel.Top = 100;
+                btnCancel.Width = 90;
 
                 form.Controls.Add(lbl);
-                form.Controls.Add(nud);
+                form.Controls.Add(nudDb);
+                form.Controls.Add(btn0dB);
+                form.Controls.Add(btnMinus2dB);
+                form.Controls.Add(btnMinus6dB);
                 form.Controls.Add(btnOk);
                 form.Controls.Add(btnCancel);
 
@@ -1336,10 +1414,19 @@ namespace MinimalSoundEditor
                 if (result != DialogResult.OK)
                     return false;
 
-                target = (float)nud.Value;
+                // dB -> linearer Peak (0 dB = 1.0, -6 dB ~ 0.501)
+                decimal db = nudDb.Value;
+                double dbDouble = (double)db;
+                double linear = Math.Pow(10.0, dbDouble / 20.0);
+
+                if (linear > 1.0) linear = 1.0;      // Sicherheit
+                if (linear < 0.0) linear = 0.0;
+
+                targetLinear = (float)linear;
                 return true;
             }
         }
+
         private void ExportSelection()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
