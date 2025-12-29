@@ -31,8 +31,8 @@ namespace MinimalSoundEditor
             Text = "Theme Settings";
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
-            Width = 380;
-            Height = 260;
+            Width = 405;
+            Height = 280;
             MaximizeBox = false;
             MinimizeBox = false;
             ShowInTaskbar = false;
@@ -84,18 +84,18 @@ namespace MinimalSoundEditor
             {
                 Text = "Reset defaults",
                 Left = 10,
-                Top = rowY + 20,
-                Width = 120
+                Top = rowY + 24,
+                Width = 100
             };
             btnDefaults.Click += (s, e) => ResetCurrentThemeToDefaults();
 
             // 👇 NEU: themes.json öffnen
             var btnOpenJson = new Button
             {
-                Text = "themes.json öffnen",
-                Left = 140,
-                Top = rowY + 20,
-                Width = 140
+                Text = "themes.json",
+                Left = 120,
+                Top = rowY + 24,
+                Width = 80
             };
             btnOpenJson.Click += (s, e) => OpenThemeJson();
 
@@ -103,16 +103,16 @@ namespace MinimalSoundEditor
             {
                 Text = "OK",
                 DialogResult = DialogResult.OK,
-                Left = 290,
-                Top = rowY + 20,
+                Left = 210,
+                Top = rowY + 24,
                 Width = 80
             };
             var btnCancel = new Button
             {
                 Text = "Cancel",
                 DialogResult = DialogResult.Cancel,
-                Left = 290 + 90,
-                Top = rowY + 20,
+                Left = 300 ,
+                Top = rowY + 24,
                 Width = 80
             };
 

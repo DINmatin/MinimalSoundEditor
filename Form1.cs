@@ -6,5 +6,7 @@ namespace MinimalSoundEditor
         {
             InitializeComponent();
         }
+
+     
     }
 }

@@ -2,959 +2,958 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 
+
 namespace MinimalSoundEditor
 {
-    namespace MinimalSoundEditor
+    public class WaveformViewTheme
     {
-        public class WaveformViewTheme
+        public Color Background { get; set; }
+        public Color WaveColor { get; set; }
+        public Color ZeroLineColor { get; set; }
+        public Color SelectionFillColor { get; set; }
+        public Color SelectionEdgeColor { get; set; }
+        public Color PlayheadColor { get; set; }
+        public Color TextColor { get; set; }
+    }
+
+    public class WaveformView : Control
+    {
+        private const int RULER_HEIGHT = 14;   // oben: Zeit-Leiste
+
+        private float[] _samples = Array.Empty<float>(); // nie null
+        private float _zoom = 1.0f; // vertikaler Zoom
+
+        private int? _selectionStartSample;
+        private int? _selectionEndSample;
+
+        private int _playbackSample; // aktueller Playhead (Sampleindex)
+
+        // Sichtbarer Ausschnitt (horizontal)
+        private int _visibleStartSample = 0;
+        private int _visibleSampleCount = 0; // <=0 = ganzer Track
+
+        // Dragging / Selection
+        private bool _isMouseDown;
+        private DragMode _dragMode = DragMode.None;
+        private const int EdgeHitPixels = 6; // Klick-Toleranz an Selektionskanten
+        private bool _isHoveringEdge = false;
+
+        private enum DragMode
         {
-            public Color Background { get; set; }
-            public Color WaveColor { get; set; }
-            public Color ZeroLineColor { get; set; }
-            public Color SelectionFillColor { get; set; }
-            public Color SelectionEdgeColor { get; set; }
-            public Color PlayheadColor { get; set; }
-            public Color TextColor { get; set; }
+            None,
+            NewSelection,
+            ResizeLeft,
+            ResizeRight
         }
 
-        public class WaveformView : Control
+        // Peak-Cache + Bitmap-Cache
+        private struct Peak
         {
-            private const int RULER_HEIGHT = 14;   // oben: Zeit-Leiste
+            public float Min;
+            public float Max;
+        }
 
-            private float[] _samples = Array.Empty<float>(); // nie null
-            private float _zoom = 1.0f; // vertikaler Zoom
+        private Peak[] _cachedPeaks = Array.Empty<Peak>();
+        private int _cachedViewStart = -1;
+        private int _cachedViewCount = -1;
+        private int _cachedWidth = -1;
+        private int _cachedHeight = -1;
 
-            private int? _selectionStartSample;
-            private int? _selectionEndSample;
+        private Bitmap _waveformBitmap;
+        private bool _peaksDirty = true;
+        private bool _bitmapDirty = true;
 
-            private int _playbackSample; // aktueller Playhead (Sampleindex)
+        private WaveformViewTheme _theme;
 
-            // Sichtbarer Ausschnitt (horizontal)
-            private int _visibleStartSample = 0;
-            private int _visibleSampleCount = 0; // <=0 = ganzer Track
-
-            // Dragging / Selection
-            private bool _isMouseDown;
-            private DragMode _dragMode = DragMode.None;
-            private const int EdgeHitPixels = 6; // Klick-Toleranz an Selektionskanten
-            private bool _isHoveringEdge = false;
-
-            private enum DragMode
+        private int _sampleRate = 44100;
+        /// <summary>
+        /// Abtastrate in Hz, wird für die Zeit-Skala verwendet.
+        /// </summary>
+        public int SampleRate
+        {
+            get => _sampleRate;
+            set
             {
-                None,
-                NewSelection,
-                ResizeLeft,
-                ResizeRight
+                _sampleRate = value > 0 ? value : 44100;
+                Invalidate();
             }
+        }
 
-            // Peak-Cache + Bitmap-Cache
-            private struct Peak
+
+        /// <summary>
+        /// Wird ausgelöst, wenn der Benutzer per Klick den Playhead verschiebt.
+        /// Übergibt den Sampleindex (global).
+        /// </summary>
+        public event Action<int> PlaybackPositionChangedByClick;
+
+        /// <summary>
+        /// Wird ausgelöst, wenn nach einer Auswahl (MouseUp oder SetSelection) 
+        /// eine gültige Selektion vorliegt. Übergibt Start/Ende (global).
+        /// </summary>
+        public event Action<int, int> SelectionChanged;
+
+        public WaveformView()
+        {
+            DoubleBuffered = true;
+            SetStyle(ControlStyles.AllPaintingInWmPaint |
+                     ControlStyles.UserPaint |
+                     ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw,
+                     true);
+
+            _theme = new WaveformViewTheme
             {
-                public float Min;
-                public float Max;
-            }
+                Background = Color.Black,
+                WaveColor = Color.Lime,
+                ZeroLineColor = Color.DimGray,
+                SelectionFillColor = Color.FromArgb(80, Color.Yellow),
+                SelectionEdgeColor = Color.Gold,
+                PlayheadColor = Color.Red,
+                TextColor = Color.Gray
+            };
+            BackColor = Color.Black;
+            UpdateStyles();
+        }
 
-            private Peak[] _cachedPeaks = Array.Empty<Peak>();
-            private int _cachedViewStart = -1;
-            private int _cachedViewCount = -1;
-            private int _cachedWidth = -1;
-            private int _cachedHeight = -1;
-
-            private Bitmap _waveformBitmap;
-            private bool _peaksDirty = true;
-            private bool _bitmapDirty = true;
-
-            private WaveformViewTheme _theme;
-
-            private int _sampleRate = 44100;
-            /// <summary>
-            /// Abtastrate in Hz, wird für die Zeit-Skala verwendet.
-            /// </summary>
-            public int SampleRate
+        /// <summary>
+        /// Mono-Samples im Bereich [-1, 1]
+        /// </summary>
+        public float[] Samples
+        {
+            get => _samples;
+            set
             {
-                get => _sampleRate;
-                set
-                {
-                    _sampleRate = value > 0 ? value : 44100;
-                    Invalidate();
-                }
-            }
+                _samples = value ?? Array.Empty<float>();
+                ClearSelection();
+                _playbackSample = 0;
+                _visibleStartSample = 0;
+                _visibleSampleCount = 0; // ganzer Track
 
-
-            /// <summary>
-            /// Wird ausgelöst, wenn der Benutzer per Klick den Playhead verschiebt.
-            /// Übergibt den Sampleindex (global).
-            /// </summary>
-            public event Action<int> PlaybackPositionChangedByClick;
-
-            /// <summary>
-            /// Wird ausgelöst, wenn nach einer Auswahl (MouseUp oder SetSelection) 
-            /// eine gültige Selektion vorliegt. Übergibt Start/Ende (global).
-            /// </summary>
-            public event Action<int, int> SelectionChanged;
-
-            public WaveformView()
-            {
-                DoubleBuffered = true;
-                SetStyle(ControlStyles.AllPaintingInWmPaint |
-                         ControlStyles.UserPaint |
-                         ControlStyles.OptimizedDoubleBuffer |
-                         ControlStyles.ResizeRedraw,
-                         true);
-
-                _theme = new WaveformViewTheme
-                {
-                    Background = Color.Black,
-                    WaveColor = Color.Lime,
-                    ZeroLineColor = Color.DimGray,
-                    SelectionFillColor = Color.FromArgb(80, Color.Yellow),
-                    SelectionEdgeColor = Color.Gold,
-                    PlayheadColor = Color.Red,
-                    TextColor = Color.Gray
-                };
-                BackColor = Color.Black;
-                UpdateStyles();
-            }
-
-            /// <summary>
-            /// Mono-Samples im Bereich [-1, 1]
-            /// </summary>
-            public float[] Samples
-            {
-                get => _samples;
-                set
-                {
-                    _samples = value ?? Array.Empty<float>();
-                    ClearSelection();
-                    _playbackSample = 0;
-                    _visibleStartSample = 0;
-                    _visibleSampleCount = 0; // ganzer Track
-
-                    MarkPeaksDirty();
-                    MarkBitmapDirty();
-                    Invalidate();
-                }
-            }
-
-            /// <summary>
-            /// Vertikaler Zoomfaktor
-            /// </summary>
-            public float Zoom
-            {
-                get => _zoom;
-                set
-                {
-                    if (float.IsNaN(value) || float.IsInfinity(value))
-                        return;
-
-                    _zoom = Math.Max(0.1f, Math.Min(10f, value));
-
-                    // nur vertikale Skalierung -> Peaks bleiben, Bitmap neu
-                    MarkBitmapDirty();
-                    Invalidate();
-                }
-            }
-            public void ApplyTheme(WaveformViewTheme theme)
-            {
-                if (theme == null) return;
-
-                _theme = theme;
-                BackColor = _theme.Background;
-
-                // 👇 WICHTIG: Bitmap & Peaks ungültig machen
                 MarkPeaksDirty();
                 MarkBitmapDirty();
-
                 Invalidate();
             }
+        }
 
-
-            /// <summary>
-            /// Aktuelle Abspielposition in Samples (Playhead, global).
-            /// </summary>
-            public int PlaybackSample
+        /// <summary>
+        /// Vertikaler Zoomfaktor
+        /// </summary>
+        public float Zoom
+        {
+            get => _zoom;
+            set
             {
-                get => _playbackSample;
-                set
-                {
-                    int total = _samples?.Length ?? 0;
-                    if (total <= 0)
-                    {
-                        _playbackSample = 0;
-                    }
-                    else
-                    {
-                        _playbackSample = Math.Max(0, Math.Min(value, total - 1));
-                    }
-                    Invalidate();
-                }
-            }
-            private static double GetNiceTimeStep(double visibleSeconds)
-            {
-                // sehr einfache Heuristik für Ticks
-                if (visibleSeconds <= 1.0) return 0.1;   // 100 ms
-                if (visibleSeconds <= 5.0) return 0.5;   // 500 ms
-                if (visibleSeconds <= 10.0) return 1.0;   // 1 s
-                if (visibleSeconds <= 30.0) return 2.0;   // 2 s
-                if (visibleSeconds <= 60.0) return 5.0;   // 5 s
-                if (visibleSeconds <= 300.0) return 10.0;  // 10 s
-                if (visibleSeconds <= 900.0) return 30.0;  // 30 s
-                return 60.0;                               // 1 min
-            }
-
-            /// <summary>
-            /// Beginn des sichtbaren Bereichs (Sampleindex, global).
-            /// </summary>
-            public int VisibleStartSample
-            {
-                get => _visibleStartSample;
-                set
-                {
-                    _visibleStartSample = Math.Max(0, value);
-                    MarkPeaksDirty();
-                    MarkBitmapDirty();
-                    Invalidate();
-                }
-            }
-
-            /// <summary>
-            /// Anzahl der sichtbaren Samples. 0 oder kleiner = „ganzer Track ab VisibleStart“.
-            /// </summary>
-            public int VisibleSampleCount
-            {
-                get => _visibleSampleCount;
-                set
-                {
-                    _visibleSampleCount = value;
-                    MarkPeaksDirty();
-                    MarkBitmapDirty();
-                    Invalidate();
-                }
-            }
-
-            private bool HasSelection =>
-                _samples.Length > 0 &&
-                _selectionStartSample.HasValue &&
-                _selectionEndSample.HasValue &&
-                _selectionStartSample.Value != _selectionEndSample.Value;
-
-            /// <summary>
-            /// Öffentliche Abfrage, ob aktuell eine Selektion existiert.
-            /// </summary>
-            public bool HasActiveSelection => HasSelection;
-
-            /// <summary>
-            /// Gibt die aktuelle (normalisierte) Selektion zurück.
-            /// </summary>
-            public bool TryGetSelection(out int startSample, out int endSample)
-            {
-                if (!HasSelection)
-                {
-                    startSample = 0;
-                    endSample = 0;
-                    return false;
-                }
-
-                var sel = GetNormalizedSelection(_samples.Length);
-                startSample = sel.start;
-                endSample = sel.end;
-                return true;
-            }
-
-            // --------------------------------------------------------------------
-            // Rendering
-            // --------------------------------------------------------------------
-
-            protected override void OnPaint(PaintEventArgs e)
-            {
-                base.OnPaint(e);
-
-                var g = e.Graphics;
-                int width = ClientSize.Width;
-                int height = ClientSize.Height;
-                var samples = _samples ?? Array.Empty<float>();
-                int totalSamples = samples.Length;
-
-                if (totalSamples == 0 || width <= 1 || height <= 1)
-                {
-                    g.Clear(BackColor);
-
-                    using var b = new SolidBrush(_theme.TextColor);
-                    const string msg = "Keine Audiodatei geladen";
-                    var size = g.MeasureString(msg, Font);
-                    g.DrawString(msg, Font, b,
-                        (ClientSize.Width - size.Width) / 2f,
-                        (ClientSize.Height - size.Height) / 2f);
+                if (float.IsNaN(value) || float.IsInfinity(value))
                     return;
-                }
 
-                // Sichtfenster berechnen
-                int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
-                int maxCount = totalSamples - viewStart;
-                int viewCount = _visibleSampleCount > 0
-                    ? Math.Min(_visibleSampleCount, maxCount)
-                    : maxCount;
+                _zoom = Math.Max(0.1f, Math.Min(10f, value));
 
-                if (viewCount <= 0)
-                {
-                    g.Clear(BackColor);
-                    return;
-                }
-
-                // Haben sich Geometrie / Sichtfenster geändert?
-                if (width != _cachedWidth ||
-                    height != _cachedHeight ||
-                    viewStart != _cachedViewStart ||
-                    viewCount != _cachedViewCount)
-                {
-                    _cachedWidth = width;
-                    _cachedHeight = height;
-                    _cachedViewStart = viewStart;
-                    _cachedViewCount = viewCount;
-                    MarkPeaksDirty();
-                    MarkBitmapDirty();
-                }
-
-                // Peaks ggf. neu berechnen
-                if (_peaksDirty)
-                {
-                    RebuildPeaks(samples, totalSamples, viewStart, viewCount, width);
-                }
-
-                // Bitmap ggf. neu aufbauen
-                if (_bitmapDirty)
-                {
-                    RebuildWaveformBitmap(height);
-                }
-
-                // Hintergrund-Waveform zeichnen
-                if (_waveformBitmap != null)
-                {
-                    g.DrawImageUnscaled(_waveformBitmap, 0, 0);
-                }
-                else
-                {
-                    g.Clear(BackColor);
-                }
-                // Zeit-Leiste als eigener Balken oben
-                using (var rulerBrush = new SolidBrush(GetRulerBackColor()))
-                {
-                    g.FillRectangle(rulerBrush, 0, 0, width, RULER_HEIGHT);
-                }
-
-                // Zeit-Skala oben einblenden (Wavelab-Style light)
-                if (_sampleRate > 0)
-                {
-                    double startSeconds = viewStart / (double)_sampleRate;
-                    double visibleSeconds = viewCount / (double)_sampleRate;
-                    double endSeconds = startSeconds + visibleSeconds;
-
-                    double step = GetNiceTimeStep(visibleSeconds);
-                    int rulerHeight = 12; // Höhe der Tick-Striche
-
-                    using var tickPen = new Pen(_theme.ZeroLineColor, 1);
-                    using var textBrush = new SolidBrush(_theme.TextColor);
-                    var font = this.Font;
-
-                    // erster Tick >= startSeconds
-                    double firstTick = Math.Ceiling(startSeconds / step) * step;
-
-                    for (double t = firstTick; t <= endSeconds; t += step)
-                    {
-                        double samplePos = t * _sampleRate;
-                        double rel = (samplePos - viewStart) / viewCount; // 0..1
-                        float x = (float)(rel * width);
-                        if (x < 0 || x > width) continue;
-
-                        // Tick-Strich
-                        g.DrawLine(tickPen, x, 0, x, rulerHeight);
-
-                        // Beschriftung: 0.0s, 1.0s, 5s, 10s ...
-                        string label = (t < 10.0) ? $"{t:0.0}s" : $"{t:0}s";
-                        var size = g.MeasureString(label, font);
-                        float textX = x - size.Width / 2f;
-                        float textY = rulerHeight; // direkt unter den Strichen
-
-                        if (textX + size.Width >= 0 && textX <= width)
-                        {
-                            g.DrawString(label, font, textBrush, textX, textY);
-                        }
-                    }
-                }
-
-                // Auswahl zeichnen (Overlay)
-                if (HasSelection)
-                {
-                    var sel = GetNormalizedSelection(totalSamples);
-                    int selStart = sel.start;
-                    int selEnd = sel.end;
-
-                    int windowStart = viewStart;
-                    int windowEnd = viewStart + viewCount;
-
-                    int drawStart = Math.Max(selStart, windowStart);
-                    int drawEnd = Math.Min(selEnd, windowEnd);
-
-                    if (drawEnd > drawStart)
-                    {
-                        // robustes Mapping mit long
-                        long num1 = (long)(drawStart - viewStart) * width;
-                        long num2 = (long)(drawEnd - viewStart) * width;
-
-                        int x1 = (int)(num1 / viewCount);
-                        int x2 = (int)(num2 / viewCount);
-
-                        if (x1 < 0) x1 = 0;
-                        if (x1 > width) x1 = width;
-                        if (x2 < 0) x2 = 0;
-                        if (x2 > width) x2 = width;
-
-                        if (x2 < x1)
-                        {
-                            int tmp = x1;
-                            x1 = x2;
-                            x2 = tmp;
-                        }
-
-                        using var brush = new SolidBrush(_theme.SelectionFillColor);
-                        int selTop = RULER_HEIGHT;
-                        int selHeight = height - RULER_HEIGHT;
-                        if (selHeight < 0) selHeight = 0;
-                        g.FillRectangle(brush, x1, selTop, x2 - x1, selHeight);
-
-                        using var edgePen = new Pen(_theme.SelectionEdgeColor, 2);
-                        g.DrawLine(edgePen, x1, selTop, x1, height);
-                        g.DrawLine(edgePen, x2, selTop, x2, height);
-
-
-                    }
-                }
-
-
-                // Playhead (rot) – overflow-safe
-                if (totalSamples > 0)
-                {
-                    int windowStart = viewStart;
-                    int windowEnd = viewStart + viewCount;
-
-                    if (_playbackSample >= windowStart && _playbackSample < windowEnd)
-                    {
-                        int local = _playbackSample - viewStart;
-                        if (local < 0) local = 0;
-                        if (local > viewCount) local = viewCount;
-
-                        long num = (long)local * (width - 1);
-                        int xPos = (int)(num / viewCount);
-
-                        if (xPos < 0) xPos = 0;
-                        if (xPos >= width) xPos = width - 1;
-
-                        using var pen = new Pen(_theme.PlayheadColor, 1);
-
-                        g.DrawLine(pen, xPos, 0, xPos, height);
-                    }
-                }
-
-            }
-            private Color GetRulerBackColor()
-            {
-                // leicht aufgehellte Hintergrundfarbe
-                var c = _theme.Background;
-                int r = Math.Min(255, c.R + 15);
-                int g = Math.Min(255, c.G + 15);
-                int b = Math.Min(255, c.B + 15);
-                return Color.FromArgb(r, g, b);
-            }
-
-            private void MarkPeaksDirty() => _peaksDirty = true;
-            private void MarkBitmapDirty() => _bitmapDirty = true;
-
-            private void RebuildPeaks(float[] samples, int totalSamples, int viewStart, int viewCount, int width)
-            {
-                if (width <= 0 || viewCount <= 0 || totalSamples <= 0)
-                {
-                    _cachedPeaks = Array.Empty<Peak>();
-                    _peaksDirty = false;
-                    return;
-                }
-
-                if (_cachedPeaks == null || _cachedPeaks.Length != width)
-                    _cachedPeaks = new Peak[width];
-
-                for (int x = 0; x < width; x++)
-                {
-                    int localStart = (int)((long)x * viewCount / width);
-                    int localEnd = (int)((long)(x + 1) * viewCount / width);
-
-
-                    if (localEnd <= localStart) localEnd = localStart + 1;
-                    if (localStart >= viewCount)
-                    {
-                        _cachedPeaks[x].Min = 0f;
-                        _cachedPeaks[x].Max = 0f;
-                        continue;
-                    }
-                    if (localEnd > viewCount) localEnd = viewCount;
-
-                    int startSample = viewStart + localStart;
-                    int endSample = viewStart + localEnd;
-
-                    if (startSample >= totalSamples)
-                    {
-                        _cachedPeaks[x].Min = 0f;
-                        _cachedPeaks[x].Max = 0f;
-                        continue;
-                    }
-
-                    if (endSample > totalSamples)
-                        endSample = totalSamples;
-
-                    float min = 0f;
-                    float max = 0f;
-
-                    for (int i = startSample; i < endSample; i++)
-                    {
-                        if (i < 0 || i >= totalSamples)
-                            continue;
-
-                        float s = samples[i];
-                        if (s < min) min = s;
-                        if (s > max) max = s;
-                    }
-
-                    _cachedPeaks[x].Min = min;
-                    _cachedPeaks[x].Max = max;
-                }
-
-                _peaksDirty = false;
-            }
-
-            private void RebuildWaveformBitmap(int height)
-            {
-                int width = _cachedWidth;
-                if (width <= 0 || height <= 0 || _cachedPeaks == null || _cachedPeaks.Length != width)
-                {
-                    _waveformBitmap?.Dispose();
-                    _waveformBitmap = null;
-                    _bitmapDirty = false;
-                    return;
-                }
-
-                _waveformBitmap?.Dispose();
-                _waveformBitmap = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
-
-                using var g = Graphics.FromImage(_waveformBitmap);
-                g.Clear(_theme.Background);
-
-
-                float midY = height / 2f;
-                float scaleY = _zoom * (height / 2f - 4);
-
-                using var penWave = new Pen(_theme.WaveColor, 1);
-
-
-                for (int x = 0; x < width; x++)
-                {
-                    var p = _cachedPeaks[x];
-                    int y1 = (int)(midY - p.Max * scaleY);
-                    int y2 = (int)(midY - p.Min * scaleY);
-
-                    g.DrawLine(penWave, x, y1, x, y2);
-                }
-
-                // 0-Linie
-                using var zeroPen = new Pen(_theme.ZeroLineColor, 1);
-                g.DrawLine(zeroPen, 0, (int)midY, width, (int)midY);
-
-
-                _bitmapDirty = false;
-            }
-
-            protected override void OnSizeChanged(EventArgs e)
-            {
-                base.OnSizeChanged(e);
-                MarkPeaksDirty();
+                // nur vertikale Skalierung -> Peaks bleiben, Bitmap neu
                 MarkBitmapDirty();
-            }
-
-            // --------------------------------------------------------------------
-            // Helper: Selektion & Mapping
-            // --------------------------------------------------------------------
-
-
-            private (int start, int end) GetNormalizedSelection(int totalSamples)
-            {
-                if (totalSamples <= 0)
-                    return (0, 0);
-
-                int s = _selectionStartSample ?? 0;
-                int e = _selectionEndSample ?? 0;
-                if (s > e)
-                {
-                    int tmp = s;
-                    s = e;
-                    e = tmp;
-                }
-                s = Math.Max(0, Math.Min(s, totalSamples));
-                e = Math.Max(0, Math.Min(e, totalSamples));
-                return (s, e);
-            }
-
-            private int XToSampleIndex(int x)
-            {
-                int width = ClientSize.Width;
-                int totalSamples = _samples?.Length ?? 0;
-
-                if (width <= 1 || totalSamples == 0)
-                    return 0;
-
-                int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
-                int maxCount = totalSamples - viewStart;
-                int viewCount = _visibleSampleCount > 0
-                    ? Math.Min(_visibleSampleCount, maxCount)
-                    : maxCount;
-
-                if (viewCount <= 0)
-                    return 0;
-
-                x = Math.Max(0, Math.Min(width - 1, x));
-
-                // ✅ hier war vorher: int localIndex = x * viewCount / width;
-                long localIndexLong = (long)x * viewCount / width;
-                int localIndex = (int)localIndexLong;
-
-                int sampleIndex = viewStart + localIndex;
-
-                if (sampleIndex < 0) sampleIndex = 0;
-                if (sampleIndex >= totalSamples) sampleIndex = totalSamples - 1;
-
-                return sampleIndex;
-            }
-
-
-            private int SampleToX(int sampleIndex)
-            {
-                int width = ClientSize.Width;
-                int totalSamples = _samples?.Length ?? 0;
-
-                if (width <= 1 || totalSamples == 0)
-                    return 0;
-
-                int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
-                int maxCount = totalSamples - viewStart;
-                int viewCount = _visibleSampleCount > 0
-                    ? Math.Min(_visibleSampleCount, maxCount)
-                    : maxCount;
-
-                if (viewCount <= 0)
-                    return 0;
-
-                int local = sampleIndex - viewStart;
-                if (local < 0) local = 0;
-                if (local > viewCount) local = viewCount;
-
-                // ✅ vorher float-Rechnung; hier machen wir’s „overflow-sicher“:
-                long xLong = (long)local * (width - 1) / viewCount;
-                int x = (int)xLong;
-
-                return x;
-            }
-
-
-            // --------------------------------------------------------------------
-            // Maus-Interaktion
-            // --------------------------------------------------------------------
-            protected override void OnMouseLeave(EventArgs e)
-            {
-                base.OnMouseLeave(e);
-                Cursor = Cursors.Default;
-                _isHoveringEdge = false;
-            }
-
-            protected override void OnMouseDown(MouseEventArgs e)
-            {
-                base.OnMouseDown(e);
-                if (_samples == null || _samples.Length == 0) return;
-
-                int totalSamples = _samples.Length;
-
-                // 1) Klick in die Zeit-Leiste oben -> nur Playhead setzen, Selektion bleibt
-                if (e.Button == MouseButtons.Left && e.Y <= RULER_HEIGHT)
-                {
-                    int idx = XToSampleIndex(e.X);
-                    PlaybackSample = idx;
-                    PlaybackPositionChangedByClick?.Invoke(idx);
-                    Invalidate();
-                    return; // WICHTIG: nicht in die Auswahl-Logik fallen
-                }
-
-                // 2) Klick in die eigentliche Wellenform -> Selektion / Resize
-                _isMouseDown = true;
-
-                // Klick-Sample im aktuellen Sichtfenster
-                int clickSample = XToSampleIndex(e.X);
-
-                // Prüfen, ob wir eine Selektion haben und ob wir an einer Kante klicken
-                if (HasSelection)
-                {
-                    var sel = GetNormalizedSelection(totalSamples);
-                    int selStart = sel.start;
-                    int selEnd = sel.end;
-
-                    int xLeft = SampleToX(selStart);
-                    int xRight = SampleToX(selEnd);
-
-                    var dxLeft = Math.Abs(e.X - xLeft);
-                    var dxRight = Math.Abs(e.X - xRight);
-
-                    bool nearLeft = dxLeft <= EdgeHitPixels;
-                    bool nearRight = dxRight <= EdgeHitPixels;
-
-                    if (nearLeft && !nearRight)
-                    {
-                        _dragMode = DragMode.ResizeLeft;
-                        Cursor = Cursors.SizeWE;
-                        return;
-                    }
-                    if (nearRight && !nearLeft)
-                    {
-                        _dragMode = DragMode.ResizeRight;
-                        Cursor = Cursors.SizeWE;
-                        return;
-                    }
-                    if (nearLeft && nearRight)
-                    {
-                        // extrem schmale Auswahl: nimm z.B. rechts
-                        _dragMode = DragMode.ResizeRight;
-                        Cursor = Cursors.SizeWE;
-                        return;
-                    }
-                }
-
-                // Sonst: neue Selektion beginnen
-                _dragMode = DragMode.NewSelection;
-
-                _selectionStartSample = clickSample;
-                _selectionEndSample = clickSample;
-
-                PlaybackSample = clickSample;
-                PlaybackPositionChangedByClick?.Invoke(clickSample);
-
                 Invalidate();
             }
+        }
+        public void ApplyTheme(WaveformViewTheme theme)
+        {
+            if (theme == null) return;
+
+            _theme = theme;
+            BackColor = _theme.Background;
+
+            // 👇 WICHTIG: Bitmap & Peaks ungültig machen
+            MarkPeaksDirty();
+            MarkBitmapDirty();
+
+            Invalidate();
+        }
 
 
-            protected override void OnMouseMove(MouseEventArgs e)
-            {
-                base.OnMouseMove(e);
-
-                // In der Zeit-Leiste: keine Resize- / Auswahl-Logik
-                if (e.Y <= RULER_HEIGHT)
-                {
-                    if (!_isMouseDown)
-                    {
-                        Cursor = Cursors.Default;
-                        _isHoveringEdge = false;
-                    }
-                    return;
-                }
-
-                if (_samples == null || _samples.Length == 0)
-                {
-                    Cursor = Cursors.Default;
-                    _isHoveringEdge = false;
-                    return;
-                }
-
-                int totalSamples = _samples.Length;
-
-                // HOVER-LOGIK FÜR KANTEN (wenn keine Maustaste gedrückt)
-                if (!_isMouseDown && HasSelection)
-                {
-                    var sel = GetNormalizedSelection(totalSamples);
-                    int selStart = sel.start;
-                    int selEnd = sel.end;
-
-                    int xLeft = SampleToX(selStart);
-                    int xRight = SampleToX(selEnd);
-
-                    var dxLeft = Math.Abs(e.X - xLeft);
-                    var dxRight = Math.Abs(e.X - xRight);
-
-                    bool nearLeft = dxLeft <= EdgeHitPixels;
-                    bool nearRight = dxRight <= EdgeHitPixels;
-
-                    if (nearLeft || nearRight)
-                    {
-                        Cursor = Cursors.SizeWE;
-                        _isHoveringEdge = true;
-                    }
-                    else if (_isHoveringEdge)
-                    {
-                        Cursor = Cursors.Default;
-                        _isHoveringEdge = false;
-                    }
-                }
-
-                // DRAGGEN (nur wenn Maus gedrückt)
-                if (!_isMouseDown || _dragMode == DragMode.None)
-                    return;
-
-                int idx = XToSampleIndex(e.X);
-
-                switch (_dragMode)
-                {
-                    case DragMode.NewSelection:
-                        _selectionEndSample = idx;
-                        break;
-
-                    case DragMode.ResizeLeft:
-                        {
-                            int end = _selectionEndSample ?? idx;
-                            _selectionStartSample = idx;
-                            var sel = GetNormalizedSelection(totalSamples);
-                            _selectionStartSample = sel.start;
-                            _selectionEndSample = sel.end;
-                            break;
-                        }
-
-                    case DragMode.ResizeRight:
-                        {
-                            int start = _selectionStartSample ?? idx;
-                            _selectionEndSample = idx;
-                            var sel = GetNormalizedSelection(totalSamples);
-                            _selectionStartSample = sel.start;
-                            _selectionEndSample = sel.end;
-                            break;
-                        }
-                }
-
-                Invalidate();
-            }
-
-            protected override void OnMouseUp(MouseEventArgs e)
-            {
-                base.OnMouseUp(e);
-                _isMouseDown = false;
-
-                if (_samples == null || _samples.Length == 0)
-                {
-                    _dragMode = DragMode.None;
-                    Cursor = Cursors.Default;
-                    _isHoveringEdge = false;
-                    return;
-                }
-
-                if (_selectionStartSample.HasValue && _selectionEndSample.HasValue)
-                {
-                    var sel = GetNormalizedSelection(_samples.Length);
-                    _selectionStartSample = sel.start;
-                    _selectionEndSample = sel.end;
-
-                    if (sel.start != sel.end)
-                    {
-                        SelectionChanged?.Invoke(sel.start, sel.end);
-                    }
-                    else
-                    {
-                        ClearSelection();
-                    }
-                }
-
-                _dragMode = DragMode.None;
-                Cursor = Cursors.Default;
-                _isHoveringEdge = false;
-            }
-
-            // --------------------------------------------------------------------
-            // Public API für Selektion
-            // --------------------------------------------------------------------
-
-            public void ClearSelection()
-            {
-                _selectionStartSample = null;
-                _selectionEndSample = null;
-                Invalidate();
-            }
-
-            /// <summary>
-            /// Setzt eine Selektion programmatisch (globale Sampleindices).
-            /// Optional kann SelectionChanged ausgelöst werden.
-            /// </summary>
-            public void SetSelection(int startSample, int endSample, bool raiseEvent = true)
+        /// <summary>
+        /// Aktuelle Abspielposition in Samples (Playhead, global).
+        /// </summary>
+        public int PlaybackSample
+        {
+            get => _playbackSample;
+            set
             {
                 int total = _samples?.Length ?? 0;
                 if (total <= 0)
                 {
-                    ClearSelection();
-                    return;
+                    _playbackSample = 0;
                 }
-
-                if (endSample < startSample)
+                else
                 {
-                    int tmp = startSample;
-                    startSample = endSample;
-                    endSample = tmp;
+                    _playbackSample = Math.Max(0, Math.Min(value, total - 1));
                 }
-
-                startSample = Math.Max(0, Math.Min(startSample, total));
-                endSample = Math.Max(0, Math.Min(endSample, total));
-
-                _selectionStartSample = startSample;
-                _selectionEndSample = endSample;
-
                 Invalidate();
-
-                if (raiseEvent && HasSelection)
-                {
-                    var sel = GetNormalizedSelection(total);
-                    SelectionChanged?.Invoke(sel.start, sel.end);
-                }
             }
+        }
+        private static double GetNiceTimeStep(double visibleSeconds)
+        {
+            // sehr einfache Heuristik für Ticks
+            if (visibleSeconds <= 1.0) return 0.1;   // 100 ms
+            if (visibleSeconds <= 5.0) return 0.5;   // 500 ms
+            if (visibleSeconds <= 10.0) return 1.0;   // 1 s
+            if (visibleSeconds <= 30.0) return 2.0;   // 2 s
+            if (visibleSeconds <= 60.0) return 5.0;   // 5 s
+            if (visibleSeconds <= 300.0) return 10.0;  // 10 s
+            if (visibleSeconds <= 900.0) return 30.0;  // 30 s
+            return 60.0;                               // 1 min
+        }
 
-            /// <summary>
-            /// Schneidet die aktuelle Auswahl aus dem Sample-Puffer.
-            /// </summary>
-            public void DeleteSelection()
+        /// <summary>
+        /// Beginn des sichtbaren Bereichs (Sampleindex, global).
+        /// </summary>
+        public int VisibleStartSample
+        {
+            get => _visibleStartSample;
+            set
             {
-                if (_samples == null || _samples.Length == 0 || !HasSelection)
-                    return;
-
-                int totalSamples = _samples.Length;
-                var (start, end) = GetNormalizedSelection(totalSamples);
-                if (end <= start)
-                    return;
-
-                int cutLength = end - start;
-                int newLength = totalSamples - cutLength;
-                if (newLength <= 0)
-                {
-                    _samples = Array.Empty<float>();
-                    ClearSelection();
-                    PlaybackSample = 0;
-
-                    MarkPeaksDirty();
-                    MarkBitmapDirty();
-                    Invalidate();
-                    return;
-                }
-
-                var newSamples = new float[newLength];
-
-                Array.Copy(_samples, 0, newSamples, 0, start);
-                Array.Copy(_samples, end, newSamples, start, totalSamples - end);
-
-                _samples = newSamples;
-
-                // Playhead an Schnittstelle setzen
-                PlaybackSample = start;
-
-                ClearSelection();
-
+                _visibleStartSample = Math.Max(0, value);
                 MarkPeaksDirty();
                 MarkBitmapDirty();
                 Invalidate();
             }
         }
+
+        /// <summary>
+        /// Anzahl der sichtbaren Samples. 0 oder kleiner = „ganzer Track ab VisibleStart“.
+        /// </summary>
+        public int VisibleSampleCount
+        {
+            get => _visibleSampleCount;
+            set
+            {
+                _visibleSampleCount = value;
+                MarkPeaksDirty();
+                MarkBitmapDirty();
+                Invalidate();
+            }
+        }
+
+        private bool HasSelection =>
+            _samples.Length > 0 &&
+            _selectionStartSample.HasValue &&
+            _selectionEndSample.HasValue &&
+            _selectionStartSample.Value != _selectionEndSample.Value;
+
+        /// <summary>
+        /// Öffentliche Abfrage, ob aktuell eine Selektion existiert.
+        /// </summary>
+        public bool HasActiveSelection => HasSelection;
+
+        /// <summary>
+        /// Gibt die aktuelle (normalisierte) Selektion zurück.
+        /// </summary>
+        public bool TryGetSelection(out int startSample, out int endSample)
+        {
+            if (!HasSelection)
+            {
+                startSample = 0;
+                endSample = 0;
+                return false;
+            }
+
+            var sel = GetNormalizedSelection(_samples.Length);
+            startSample = sel.start;
+            endSample = sel.end;
+            return true;
+        }
+
+        // --------------------------------------------------------------------
+        // Rendering
+        // --------------------------------------------------------------------
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            var g = e.Graphics;
+            int width = ClientSize.Width;
+            int height = ClientSize.Height;
+            var samples = _samples ?? Array.Empty<float>();
+            int totalSamples = samples.Length;
+
+            if (totalSamples == 0 || width <= 1 || height <= 1)
+            {
+                g.Clear(BackColor);
+
+                using var b = new SolidBrush(_theme.TextColor);
+                const string msg = "Keine Audiodatei geladen";
+                var size = g.MeasureString(msg, Font);
+                g.DrawString(msg, Font, b,
+                    (ClientSize.Width - size.Width) / 2f,
+                    (ClientSize.Height - size.Height) / 2f);
+                return;
+            }
+
+            // Sichtfenster berechnen
+            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
+            int maxCount = totalSamples - viewStart;
+            int viewCount = _visibleSampleCount > 0
+                ? Math.Min(_visibleSampleCount, maxCount)
+                : maxCount;
+
+            if (viewCount <= 0)
+            {
+                g.Clear(BackColor);
+                return;
+            }
+
+            // Haben sich Geometrie / Sichtfenster geändert?
+            if (width != _cachedWidth ||
+                height != _cachedHeight ||
+                viewStart != _cachedViewStart ||
+                viewCount != _cachedViewCount)
+            {
+                _cachedWidth = width;
+                _cachedHeight = height;
+                _cachedViewStart = viewStart;
+                _cachedViewCount = viewCount;
+                MarkPeaksDirty();
+                MarkBitmapDirty();
+            }
+
+            // Peaks ggf. neu berechnen
+            if (_peaksDirty)
+            {
+                RebuildPeaks(samples, totalSamples, viewStart, viewCount, width);
+            }
+
+            // Bitmap ggf. neu aufbauen
+            if (_bitmapDirty)
+            {
+                RebuildWaveformBitmap(height);
+            }
+
+            // Hintergrund-Waveform zeichnen
+            if (_waveformBitmap != null)
+            {
+                g.DrawImageUnscaled(_waveformBitmap, 0, 0);
+            }
+            else
+            {
+                g.Clear(BackColor);
+            }
+            // Zeit-Leiste als eigener Balken oben
+            using (var rulerBrush = new SolidBrush(GetRulerBackColor()))
+            {
+                g.FillRectangle(rulerBrush, 0, 0, width, RULER_HEIGHT);
+            }
+
+            // Zeit-Skala oben einblenden (Wavelab-Style light)
+            if (_sampleRate > 0)
+            {
+                double startSeconds = viewStart / (double)_sampleRate;
+                double visibleSeconds = viewCount / (double)_sampleRate;
+                double endSeconds = startSeconds + visibleSeconds;
+
+                double step = GetNiceTimeStep(visibleSeconds);
+                int rulerHeight = 12; // Höhe der Tick-Striche
+
+                using var tickPen = new Pen(_theme.ZeroLineColor, 1);
+                using var textBrush = new SolidBrush(_theme.TextColor);
+                var font = this.Font;
+
+                // erster Tick >= startSeconds
+                double firstTick = Math.Ceiling(startSeconds / step) * step;
+
+                for (double t = firstTick; t <= endSeconds; t += step)
+                {
+                    double samplePos = t * _sampleRate;
+                    double rel = (samplePos - viewStart) / viewCount; // 0..1
+                    float x = (float)(rel * width);
+                    if (x < 0 || x > width) continue;
+
+                    // Tick-Strich
+                    g.DrawLine(tickPen, x, 0, x, rulerHeight);
+
+                    // Beschriftung: 0.0s, 1.0s, 5s, 10s ...
+                    string label = (t < 10.0) ? $"{t:0.0}s" : $"{t:0}s";
+                    var size = g.MeasureString(label, font);
+                    float textX = x - size.Width / 2f;
+                    float textY = rulerHeight; // direkt unter den Strichen
+
+                    if (textX + size.Width >= 0 && textX <= width)
+                    {
+                        g.DrawString(label, font, textBrush, textX, textY);
+                    }
+                }
+            }
+
+            // Auswahl zeichnen (Overlay)
+            if (HasSelection)
+            {
+                var sel = GetNormalizedSelection(totalSamples);
+                int selStart = sel.start;
+                int selEnd = sel.end;
+
+                int windowStart = viewStart;
+                int windowEnd = viewStart + viewCount;
+
+                int drawStart = Math.Max(selStart, windowStart);
+                int drawEnd = Math.Min(selEnd, windowEnd);
+
+                if (drawEnd > drawStart)
+                {
+                    // robustes Mapping mit long
+                    long num1 = (long)(drawStart - viewStart) * width;
+                    long num2 = (long)(drawEnd - viewStart) * width;
+
+                    int x1 = (int)(num1 / viewCount);
+                    int x2 = (int)(num2 / viewCount);
+
+                    if (x1 < 0) x1 = 0;
+                    if (x1 > width) x1 = width;
+                    if (x2 < 0) x2 = 0;
+                    if (x2 > width) x2 = width;
+
+                    if (x2 < x1)
+                    {
+                        int tmp = x1;
+                        x1 = x2;
+                        x2 = tmp;
+                    }
+
+                    using var brush = new SolidBrush(_theme.SelectionFillColor);
+                    int selTop = RULER_HEIGHT;
+                    int selHeight = height - RULER_HEIGHT;
+                    if (selHeight < 0) selHeight = 0;
+                    g.FillRectangle(brush, x1, selTop, x2 - x1, selHeight);
+
+                    using var edgePen = new Pen(_theme.SelectionEdgeColor, 2);
+                    g.DrawLine(edgePen, x1, selTop, x1, height);
+                    g.DrawLine(edgePen, x2, selTop, x2, height);
+
+
+                }
+            }
+
+
+            // Playhead (rot) – overflow-safe
+            if (totalSamples > 0)
+            {
+                int windowStart = viewStart;
+                int windowEnd = viewStart + viewCount;
+
+                if (_playbackSample >= windowStart && _playbackSample < windowEnd)
+                {
+                    int local = _playbackSample - viewStart;
+                    if (local < 0) local = 0;
+                    if (local > viewCount) local = viewCount;
+
+                    long num = (long)local * (width - 1);
+                    int xPos = (int)(num / viewCount);
+
+                    if (xPos < 0) xPos = 0;
+                    if (xPos >= width) xPos = width - 1;
+
+                    using var pen = new Pen(_theme.PlayheadColor, 1);
+
+                    g.DrawLine(pen, xPos, 0, xPos, height);
+                }
+            }
+
+        }
+        private Color GetRulerBackColor()
+        {
+            // leicht aufgehellte Hintergrundfarbe
+            var c = _theme.Background;
+            int r = Math.Min(255, c.R + 15);
+            int g = Math.Min(255, c.G + 15);
+            int b = Math.Min(255, c.B + 15);
+            return Color.FromArgb(r, g, b);
+        }
+
+        private void MarkPeaksDirty() => _peaksDirty = true;
+        private void MarkBitmapDirty() => _bitmapDirty = true;
+
+        private void RebuildPeaks(float[] samples, int totalSamples, int viewStart, int viewCount, int width)
+        {
+            if (width <= 0 || viewCount <= 0 || totalSamples <= 0)
+            {
+                _cachedPeaks = Array.Empty<Peak>();
+                _peaksDirty = false;
+                return;
+            }
+
+            if (_cachedPeaks == null || _cachedPeaks.Length != width)
+                _cachedPeaks = new Peak[width];
+
+            for (int x = 0; x < width; x++)
+            {
+                int localStart = (int)((long)x * viewCount / width);
+                int localEnd = (int)((long)(x + 1) * viewCount / width);
+
+
+                if (localEnd <= localStart) localEnd = localStart + 1;
+                if (localStart >= viewCount)
+                {
+                    _cachedPeaks[x].Min = 0f;
+                    _cachedPeaks[x].Max = 0f;
+                    continue;
+                }
+                if (localEnd > viewCount) localEnd = viewCount;
+
+                int startSample = viewStart + localStart;
+                int endSample = viewStart + localEnd;
+
+                if (startSample >= totalSamples)
+                {
+                    _cachedPeaks[x].Min = 0f;
+                    _cachedPeaks[x].Max = 0f;
+                    continue;
+                }
+
+                if (endSample > totalSamples)
+                    endSample = totalSamples;
+
+                float min = 0f;
+                float max = 0f;
+
+                for (int i = startSample; i < endSample; i++)
+                {
+                    if (i < 0 || i >= totalSamples)
+                        continue;
+
+                    float s = samples[i];
+                    if (s < min) min = s;
+                    if (s > max) max = s;
+                }
+
+                _cachedPeaks[x].Min = min;
+                _cachedPeaks[x].Max = max;
+            }
+
+            _peaksDirty = false;
+        }
+
+        private void RebuildWaveformBitmap(int height)
+        {
+            int width = _cachedWidth;
+            if (width <= 0 || height <= 0 || _cachedPeaks == null || _cachedPeaks.Length != width)
+            {
+                _waveformBitmap?.Dispose();
+                _waveformBitmap = null;
+                _bitmapDirty = false;
+                return;
+            }
+
+            _waveformBitmap?.Dispose();
+            _waveformBitmap = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+
+            using var g = Graphics.FromImage(_waveformBitmap);
+            g.Clear(_theme.Background);
+
+
+            float midY = height / 2f;
+            float scaleY = _zoom * (height / 2f - 4);
+
+            using var penWave = new Pen(_theme.WaveColor, 1);
+
+
+            for (int x = 0; x < width; x++)
+            {
+                var p = _cachedPeaks[x];
+                int y1 = (int)(midY - p.Max * scaleY);
+                int y2 = (int)(midY - p.Min * scaleY);
+
+                g.DrawLine(penWave, x, y1, x, y2);
+            }
+
+            // 0-Linie
+            using var zeroPen = new Pen(_theme.ZeroLineColor, 1);
+            g.DrawLine(zeroPen, 0, (int)midY, width, (int)midY);
+
+
+            _bitmapDirty = false;
+        }
+
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+            MarkPeaksDirty();
+            MarkBitmapDirty();
+        }
+
+        // --------------------------------------------------------------------
+        // Helper: Selektion & Mapping
+        // --------------------------------------------------------------------
+
+
+        private (int start, int end) GetNormalizedSelection(int totalSamples)
+        {
+            if (totalSamples <= 0)
+                return (0, 0);
+
+            int s = _selectionStartSample ?? 0;
+            int e = _selectionEndSample ?? 0;
+            if (s > e)
+            {
+                int tmp = s;
+                s = e;
+                e = tmp;
+            }
+            s = Math.Max(0, Math.Min(s, totalSamples));
+            e = Math.Max(0, Math.Min(e, totalSamples));
+            return (s, e);
+        }
+
+        private int XToSampleIndex(int x)
+        {
+            int width = ClientSize.Width;
+            int totalSamples = _samples?.Length ?? 0;
+
+            if (width <= 1 || totalSamples == 0)
+                return 0;
+
+            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
+            int maxCount = totalSamples - viewStart;
+            int viewCount = _visibleSampleCount > 0
+                ? Math.Min(_visibleSampleCount, maxCount)
+                : maxCount;
+
+            if (viewCount <= 0)
+                return 0;
+
+            x = Math.Max(0, Math.Min(width - 1, x));
+
+            // ✅ hier war vorher: int localIndex = x * viewCount / width;
+            long localIndexLong = (long)x * viewCount / width;
+            int localIndex = (int)localIndexLong;
+
+            int sampleIndex = viewStart + localIndex;
+
+            if (sampleIndex < 0) sampleIndex = 0;
+            if (sampleIndex >= totalSamples) sampleIndex = totalSamples - 1;
+
+            return sampleIndex;
+        }
+
+
+        private int SampleToX(int sampleIndex)
+        {
+            int width = ClientSize.Width;
+            int totalSamples = _samples?.Length ?? 0;
+
+            if (width <= 1 || totalSamples == 0)
+                return 0;
+
+            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
+            int maxCount = totalSamples - viewStart;
+            int viewCount = _visibleSampleCount > 0
+                ? Math.Min(_visibleSampleCount, maxCount)
+                : maxCount;
+
+            if (viewCount <= 0)
+                return 0;
+
+            int local = sampleIndex - viewStart;
+            if (local < 0) local = 0;
+            if (local > viewCount) local = viewCount;
+
+            // ✅ vorher float-Rechnung; hier machen wir’s „overflow-sicher“:
+            long xLong = (long)local * (width - 1) / viewCount;
+            int x = (int)xLong;
+
+            return x;
+        }
+
+
+        // --------------------------------------------------------------------
+        // Maus-Interaktion
+        // --------------------------------------------------------------------
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            Cursor = Cursors.Default;
+            _isHoveringEdge = false;
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (_samples == null || _samples.Length == 0) return;
+
+            int totalSamples = _samples.Length;
+
+            // 1) Klick in die Zeit-Leiste oben -> nur Playhead setzen, Selektion bleibt
+            if (e.Button == MouseButtons.Left && e.Y <= RULER_HEIGHT)
+            {
+                int idx = XToSampleIndex(e.X);
+                PlaybackSample = idx;
+                PlaybackPositionChangedByClick?.Invoke(idx);
+                Invalidate();
+                return; // WICHTIG: nicht in die Auswahl-Logik fallen
+            }
+
+            // 2) Klick in die eigentliche Wellenform -> Selektion / Resize
+            _isMouseDown = true;
+
+            // Klick-Sample im aktuellen Sichtfenster
+            int clickSample = XToSampleIndex(e.X);
+
+            // Prüfen, ob wir eine Selektion haben und ob wir an einer Kante klicken
+            if (HasSelection)
+            {
+                var sel = GetNormalizedSelection(totalSamples);
+                int selStart = sel.start;
+                int selEnd = sel.end;
+
+                int xLeft = SampleToX(selStart);
+                int xRight = SampleToX(selEnd);
+
+                var dxLeft = Math.Abs(e.X - xLeft);
+                var dxRight = Math.Abs(e.X - xRight);
+
+                bool nearLeft = dxLeft <= EdgeHitPixels;
+                bool nearRight = dxRight <= EdgeHitPixels;
+
+                if (nearLeft && !nearRight)
+                {
+                    _dragMode = DragMode.ResizeLeft;
+                    Cursor = Cursors.SizeWE;
+                    return;
+                }
+                if (nearRight && !nearLeft)
+                {
+                    _dragMode = DragMode.ResizeRight;
+                    Cursor = Cursors.SizeWE;
+                    return;
+                }
+                if (nearLeft && nearRight)
+                {
+                    // extrem schmale Auswahl: nimm z.B. rechts
+                    _dragMode = DragMode.ResizeRight;
+                    Cursor = Cursors.SizeWE;
+                    return;
+                }
+            }
+
+            // Sonst: neue Selektion beginnen
+            _dragMode = DragMode.NewSelection;
+
+            _selectionStartSample = clickSample;
+            _selectionEndSample = clickSample;
+
+            PlaybackSample = clickSample;
+            PlaybackPositionChangedByClick?.Invoke(clickSample);
+
+            Invalidate();
+        }
+
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+
+            // In der Zeit-Leiste: keine Resize- / Auswahl-Logik
+            if (e.Y <= RULER_HEIGHT)
+            {
+                if (!_isMouseDown)
+                {
+                    Cursor = Cursors.Default;
+                    _isHoveringEdge = false;
+                }
+                return;
+            }
+
+            if (_samples == null || _samples.Length == 0)
+            {
+                Cursor = Cursors.Default;
+                _isHoveringEdge = false;
+                return;
+            }
+
+            int totalSamples = _samples.Length;
+
+            // HOVER-LOGIK FÜR KANTEN (wenn keine Maustaste gedrückt)
+            if (!_isMouseDown && HasSelection)
+            {
+                var sel = GetNormalizedSelection(totalSamples);
+                int selStart = sel.start;
+                int selEnd = sel.end;
+
+                int xLeft = SampleToX(selStart);
+                int xRight = SampleToX(selEnd);
+
+                var dxLeft = Math.Abs(e.X - xLeft);
+                var dxRight = Math.Abs(e.X - xRight);
+
+                bool nearLeft = dxLeft <= EdgeHitPixels;
+                bool nearRight = dxRight <= EdgeHitPixels;
+
+                if (nearLeft || nearRight)
+                {
+                    Cursor = Cursors.SizeWE;
+                    _isHoveringEdge = true;
+                }
+                else if (_isHoveringEdge)
+                {
+                    Cursor = Cursors.Default;
+                    _isHoveringEdge = false;
+                }
+            }
+
+            // DRAGGEN (nur wenn Maus gedrückt)
+            if (!_isMouseDown || _dragMode == DragMode.None)
+                return;
+
+            int idx = XToSampleIndex(e.X);
+
+            switch (_dragMode)
+            {
+                case DragMode.NewSelection:
+                    _selectionEndSample = idx;
+                    break;
+
+                case DragMode.ResizeLeft:
+                    {
+                        int end = _selectionEndSample ?? idx;
+                        _selectionStartSample = idx;
+                        var sel = GetNormalizedSelection(totalSamples);
+                        _selectionStartSample = sel.start;
+                        _selectionEndSample = sel.end;
+                        break;
+                    }
+
+                case DragMode.ResizeRight:
+                    {
+                        int start = _selectionStartSample ?? idx;
+                        _selectionEndSample = idx;
+                        var sel = GetNormalizedSelection(totalSamples);
+                        _selectionStartSample = sel.start;
+                        _selectionEndSample = sel.end;
+                        break;
+                    }
+            }
+
+            Invalidate();
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            _isMouseDown = false;
+
+            if (_samples == null || _samples.Length == 0)
+            {
+                _dragMode = DragMode.None;
+                Cursor = Cursors.Default;
+                _isHoveringEdge = false;
+                return;
+            }
+
+            if (_selectionStartSample.HasValue && _selectionEndSample.HasValue)
+            {
+                var sel = GetNormalizedSelection(_samples.Length);
+                _selectionStartSample = sel.start;
+                _selectionEndSample = sel.end;
+
+                if (sel.start != sel.end)
+                {
+                    SelectionChanged?.Invoke(sel.start, sel.end);
+                }
+                else
+                {
+                    ClearSelection();
+                }
+            }
+
+            _dragMode = DragMode.None;
+            Cursor = Cursors.Default;
+            _isHoveringEdge = false;
+        }
+
+        // --------------------------------------------------------------------
+        // Public API für Selektion
+        // --------------------------------------------------------------------
+
+        public void ClearSelection()
+        {
+            _selectionStartSample = null;
+            _selectionEndSample = null;
+            Invalidate();
+        }
+
+        /// <summary>
+        /// Setzt eine Selektion programmatisch (globale Sampleindices).
+        /// Optional kann SelectionChanged ausgelöst werden.
+        /// </summary>
+        public void SetSelection(int startSample, int endSample, bool raiseEvent = true)
+        {
+            int total = _samples?.Length ?? 0;
+            if (total <= 0)
+            {
+                ClearSelection();
+                return;
+            }
+
+            if (endSample < startSample)
+            {
+                int tmp = startSample;
+                startSample = endSample;
+                endSample = tmp;
+            }
+
+            startSample = Math.Max(0, Math.Min(startSample, total));
+            endSample = Math.Max(0, Math.Min(endSample, total));
+
+            _selectionStartSample = startSample;
+            _selectionEndSample = endSample;
+
+            Invalidate();
+
+            if (raiseEvent && HasSelection)
+            {
+                var sel = GetNormalizedSelection(total);
+                SelectionChanged?.Invoke(sel.start, sel.end);
+            }
+        }
+
+        /// <summary>
+        /// Schneidet die aktuelle Auswahl aus dem Sample-Puffer.
+        /// </summary>
+        public void DeleteSelection()
+        {
+            if (_samples == null || _samples.Length == 0 || !HasSelection)
+                return;
+
+            int totalSamples = _samples.Length;
+            var (start, end) = GetNormalizedSelection(totalSamples);
+            if (end <= start)
+                return;
+
+            int cutLength = end - start;
+            int newLength = totalSamples - cutLength;
+            if (newLength <= 0)
+            {
+                _samples = Array.Empty<float>();
+                ClearSelection();
+                PlaybackSample = 0;
+
+                MarkPeaksDirty();
+                MarkBitmapDirty();
+                Invalidate();
+                return;
+            }
+
+            var newSamples = new float[newLength];
+
+            Array.Copy(_samples, 0, newSamples, 0, start);
+            Array.Copy(_samples, end, newSamples, start, totalSamples - end);
+
+            _samples = newSamples;
+
+            // Playhead an Schnittstelle setzen
+            PlaybackSample = start;
+
+            ClearSelection();
+
+            MarkPeaksDirty();
+            MarkBitmapDirty();
+            Invalidate();
+        }
     }
 }
+

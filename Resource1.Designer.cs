@@ -73,6 +73,16 @@ namespace MinimalSoundEditor {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap icon_compress {
+            get {
+                object obj = ResourceManager.GetObject("icon_compress", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap icon_del {
             get {
                 object obj = ResourceManager.GetObject("icon_del", resourceCulture);
@@ -83,9 +93,49 @@ namespace MinimalSoundEditor {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap icon_export {
+            get {
+                object obj = ResourceManager.GetObject("icon_export", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icon_fadeIn {
+            get {
+                object obj = ResourceManager.GetObject("icon_fadeIn", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icon_fadeOut {
+            get {
+                object obj = ResourceManager.GetObject("icon_fadeOut", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap icon_loop {
             get {
                 object obj = ResourceManager.GetObject("icon_loop", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icon_looping {
+            get {
+                object obj = ResourceManager.GetObject("icon_looping", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -113,6 +163,26 @@ namespace MinimalSoundEditor {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap icon_save {
+            get {
+                object obj = ResourceManager.GetObject("icon_save", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icon_saveAs {
+            get {
+                object obj = ResourceManager.GetObject("icon_saveAs", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap icon_stop {
             get {
                 object obj = ResourceManager.GetObject("icon_stop", resourceCulture);
@@ -126,6 +196,16 @@ namespace MinimalSoundEditor {
         internal static System.Drawing.Bitmap icon_themes {
             get {
                 object obj = ResourceManager.GetObject("icon_themes", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icon_trim {
+            get {
+                object obj = ResourceManager.GetObject("icon_trim", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
