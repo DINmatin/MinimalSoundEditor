@@ -53,6 +53,16 @@ namespace MinimalSoundEditor
             public float Min;
             public float Max;
         }
+        /// <summary>
+        /// Liefert die vertikale Skalierung für Amplituden.
+        /// Amplitude 1.0 (= 0 dBFS) entspricht etwa der oberen Kante
+        /// des Wellenformbereichs.
+        /// </summary>
+        private float GetAmplitudeScaleY(int contentHeight)
+        {
+            // halbe Höhe minus ein kleiner Rand
+            return contentHeight / 2f - 4f;
+        }
 
         private Peak[] _cachedPeaks = Array.Empty<Peak>();
         private int _cachedViewStart = -1;
@@ -645,7 +655,7 @@ namespace MinimalSoundEditor
 
 
             float midY = height / 2f;
-            float scaleY = _zoom * (height / 2f - 4);
+            float scaleY = GetAmplitudeScaleY(height);
 
             using var penWave = new Pen(_theme.WaveColor, 1);
 
@@ -1269,8 +1279,8 @@ namespace MinimalSoundEditor
             const int margin = 40; // Breite der Skala links
 
             float midY = contentTop + contentHeight / 2f;
-            float scaleY = _zoom * (contentHeight / 2f - 4);
-            if (scaleY <= 1f) scaleY = (contentHeight / 2f - 4);
+            float scaleY = GetAmplitudeScaleY(contentHeight);
+            //if (scaleY <= 1f) scaleY = (contentHeight / 2f - 4);
 
             // Hintergrundstreifen für die Skala
             using (var bgBrush = new SolidBrush(Color.FromArgb(220, _theme.Background)))
