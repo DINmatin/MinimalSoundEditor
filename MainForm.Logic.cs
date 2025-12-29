@@ -1226,31 +1226,54 @@ namespace MinimalSoundEditor
             return copy;
         }
 
-        private void Undo()
+        void Undo()
         {
             if (_undoStack.Count == 0)
                 return;
 
+            // Aktuelle Selektion merken (falls vorhanden)
+            bool hadSelection = TryGetCurrentSelection(out int selStart, out int selEnd);
+
+            // Ursprungszustand der Samples wiederherstellen
             _currentSamples = _undoStack.Pop();
 
             _overviewView.Samples = _currentSamples;
             _detailView.Samples = _currentSamples;
 
-            _overviewView.VisibleStartSample = 0;
-            _overviewView.VisibleSampleCount = 0;
-
-            _detailView.VisibleStartSample = 0;
-            _detailView.VisibleSampleCount = 0;
-
+            // Playhead zurück an den Anfang
             _playbackSamplePosition = 0;
             _overviewView.PlaybackSample = 0;
             _detailView.PlaybackSample = 0;
 
+            // Infos/Timer aktualisieren
             UpdateInfo(_currentSampleRate, _currentSamples.Length);
             UpdatePlaybackTimerInterval();
 
             _chkLoop.Checked = false;
+
+            // Selektion wiederherstellen (so gut es geht)
+            if (hadSelection && _currentSamples.Length > 0)
+            {
+                int total = _currentSamples.Length;
+
+                // innerhalb der neuen Länge einklemmen
+                if (selStart < 0) selStart = 0;
+                if (selStart >= total) selStart = total - 1;
+
+                if (selEnd <= selStart) selEnd = selStart + 1;
+                if (selEnd > total) selEnd = total;
+
+                // Über den Overview setzen – triggert OverviewView_SelectionChanged
+                // und stellt DetailView + Luft (±1s) automatisch ein.
+                _overviewView.SetSelection(selStart, selEnd, raiseEvent: true);
+            }
+            else
+            {
+                _overviewView.ClearSelection();
+                _detailView.ClearSelection();
+            }
         }
+
 
         // PLAY
         //private void BtnPlay_Click(object sender, EventArgs e)
