@@ -75,6 +75,14 @@ namespace MinimalSoundEditor
             MakeToolbarButtonLookFlat(_btnPlay);
             MakeToolbarButtonLookFlat(_btnStop);
             MakeToolbarButtonLookFlat(_btnTheme);
+            MakeToolbarButtonLookFlat(_btnSave);
+            MakeToolbarButtonLookFlat(_btnSaveAs);
+            MakeToolbarButtonLookFlat(_btnExport);
+            MakeToolbarButtonLookFlat(_btnTrim);
+            MakeToolbarButtonLookFlat(_btnNormalize);
+            MakeToolbarButtonLookFlat(_btnCompress);
+            MakeToolbarButtonLookFlat(_btnFadeIn);
+            MakeToolbarButtonLookFlat(_btnFadeOut);
             MakeLoopButtonLookFlat(_chkLoop);
 
             // Hover Zoom für Toolbar Buttons
@@ -84,6 +92,14 @@ namespace MinimalSoundEditor
             EnableHoverZoom(_btnPlay);
             EnableHoverZoom(_btnStop);
             EnableHoverZoom(_btnTheme);
+            EnableHoverZoom(_btnSave);
+            EnableHoverZoom(_btnSaveAs);
+            EnableHoverZoom(_btnExport);
+            EnableHoverZoom(_btnTrim);
+            EnableHoverZoom(_btnNormalize);
+            EnableHoverZoom(_btnCompress);
+            EnableHoverZoom(_btnFadeIn);
+            EnableHoverZoom(_btnFadeOut);
             EnableHoverZoom(_chkLoop);
         }
 
@@ -507,6 +523,275 @@ namespace MinimalSoundEditor
 
             _detailView.VisibleStartSample = 0;
             _detailView.VisibleSampleCount = 0; // 0 = „ganzer Track“
+        }
+
+        private void _btnSave_Click(object sender, EventArgs e)
+        {
+            // „Normales“ Speichern mit Overwrite/Rename-Frage
+            SaveWithPrompt(this, e);
+        }
+
+        private void _btnSaveAs_Click(object sender, EventArgs e)
+        {
+            // Speichern mit Formatwahl (WAV/MP3/AAC)
+            SaveAsWithFormat(this, e);
+        }
+
+        private void _btnExport_Click(object sender, EventArgs e)
+        {
+            // Aktuelle Selektion als separate Datei exportieren (Formatwahl)
+            ExportSelectionAs(this, e);
+        }
+
+        private void _btnCompress_Click(object sender, EventArgs e)
+        {
+            // Einfache Dynamik-Kompression nur auf den ausgewählten Bereich
+            CompressSelection();
+        }
+
+        private void _btnTrim_Click(object sender, EventArgs e)
+        {
+            // Sehr leise Teile am ANFANG und ENDE des GESAMTEN Clips entfernen
+            TrimSilenceAtStartAndEnd();
+        }
+
+        private void _btnFadeIn_Click(object sender, EventArgs e)
+        {
+            // Linearer Fade-In auf die aktuelle Selektion
+            FadeInSelection();
+        }
+
+        private void _btnFadeOut_Click(object sender, EventArgs e)
+        {
+            // Linearer Fade-Out auf die aktuelle Selektion
+            FadeOutSelection();
+        }
+        /// <summary>
+        /// Aktualisiert Overview/Detail-View, Selektion, Playhead und UI,
+        /// nachdem _currentSamples im ausgewählten Bereich verändert wurden.
+        /// </summary>
+        private void RefreshViewsAfterEditingSelection(
+            int selectionStart,
+            int selectionEnd,
+            int oldVisibleStart,
+            int oldVisibleCount)
+        {
+            _overviewView.Samples = _currentSamples;
+            _detailView.Samples = _currentSamples;
+
+            _detailView.VisibleStartSample = oldVisibleStart;
+            _detailView.VisibleSampleCount = oldVisibleCount;
+
+            _overviewView.SetSelection(selectionStart, selectionEnd, raiseEvent: false);
+            _detailView.SetSelection(selectionStart, selectionEnd, raiseEvent: false);
+
+            _overviewView.PlaybackSample = _playbackSamplePosition;
+            _detailView.PlaybackSample = _playbackSamplePosition;
+
+            UpdateInfo(_currentSampleRate, _currentSamples.Length);
+            UpdatePlaybackTimerInterval();
+
+            _isDirty = true;
+            UpdateWindowTitle();
+        }
+        /// <summary>
+        /// Wendet einen linearen Fade-In nur auf den aktuell selektierten Bereich an.
+        /// </summary>
+        private void FadeInSelection()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Fade In",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int length = end - start;
+            if (length <= 1)
+                return;
+
+            // Undo sichern
+            _undoStack.Push(CloneSamples(_currentSamples));
+
+            int oldVisibleStart = _detailView.VisibleStartSample;
+            int oldVisibleCount = _detailView.VisibleSampleCount;
+
+            // Linearer Fade: 0.0 -> 1.0 über den Bereich
+            for (int i = 0; i < length; i++)
+            {
+                float factor = (float)i / (length - 1); // 0..1
+                _currentSamples[start + i] *= factor;
+            }
+
+            RefreshViewsAfterEditingSelection(start, end, oldVisibleStart, oldVisibleCount);
+        }
+        /// <summary>
+        /// Wendet einen linearen Fade-Out nur auf den aktuell selektierten Bereich an.
+        /// </summary>
+        private void FadeOutSelection()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Fade Out",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int length = end - start;
+            if (length <= 1)
+                return;
+
+            // Undo sichern
+            _undoStack.Push(CloneSamples(_currentSamples));
+
+            int oldVisibleStart = _detailView.VisibleStartSample;
+            int oldVisibleCount = _detailView.VisibleSampleCount;
+
+            // Linearer Fade: 1.0 -> 0.0 über den Bereich
+            for (int i = 0; i < length; i++)
+            {
+                float factor = (float)(length - 1 - i) / (length - 1); // 1..0
+                _currentSamples[start + i] *= factor;
+            }
+
+            RefreshViewsAfterEditingSelection(start, end, oldVisibleStart, oldVisibleCount);
+        }
+        /// <summary>
+        /// Einfache Dynamik-Kompression nur im selektierten Bereich.
+        /// Threshold und Ratio sind bewusst simpel gehalten.
+        /// </summary>
+        private void CompressSelection()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Komprimieren",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int length = end - start;
+            if (length <= 0)
+                return;
+
+            // Feste Parameter: Threshold ~ -6 dBFS, Ratio 4:1
+            const float threshold = 0.5f;  // linear
+            const float ratio = 4.0f;
+
+            // Undo sichern
+            _undoStack.Push(CloneSamples(_currentSamples));
+
+            int oldVisibleStart = _detailView.VisibleStartSample;
+            int oldVisibleCount = _detailView.VisibleSampleCount;
+
+            for (int i = start; i < end; i++)
+            {
+                float s = _currentSamples[i];
+                float abs = Math.Abs(s);
+
+                if (abs <= threshold)
+                    continue;
+
+                float excess = abs - threshold;
+                float compressed = threshold + excess / ratio;
+
+                if (compressed > 1f) compressed = 1f;
+
+                float sign = (s >= 0f) ? 1f : -1f;
+                _currentSamples[i] = sign * compressed;
+            }
+
+            RefreshViewsAfterEditingSelection(start, end, oldVisibleStart, oldVisibleCount);
+        }
+        /// <summary>
+        /// Entfernt sehr leise Bereiche am Anfang und Ende des GESAMTEN Clips.
+        /// Die Selektion wird ignoriert.
+        /// </summary>
+        private void TrimSilenceAtStartAndEnd()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            // "Sehr leise" = kleiner als dieser Schwellwert
+            const float threshold = 0.01f; // ~ -40 dBFS, ziemlich leise
+
+            int total = _currentSamples.Length;
+            int start = 0;
+            int end = total - 1;
+
+            // Anfang suchen
+            while (start < total && Math.Abs(_currentSamples[start]) <= threshold)
+            {
+                start++;
+            }
+
+            // Ende suchen
+            while (end >= start && Math.Abs(_currentSamples[end]) <= threshold)
+            {
+                end--;
+            }
+
+            // Nichts zu trimmen?
+            if (start == 0 && end == total - 1)
+            {
+                MessageBox.Show(this,
+                    "Am Anfang und Ende wurden keine sehr leisen Bereiche gefunden.",
+                    "Trim",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            // Undo sichern
+            _undoStack.Push(CloneSamples(_currentSamples));
+
+            float[] newSamples;
+            if (end < start)
+            {
+                // Alles ist "leise" -> komplett leer machen
+                newSamples = Array.Empty<float>();
+            }
+            else
+            {
+                int newLength = end - start + 1;
+                newSamples = new float[newLength];
+                Array.Copy(_currentSamples, start, newSamples, 0, newLength);
+            }
+
+            _currentSamples = newSamples;
+
+            // Views updaten
+            _overviewView.Samples = _currentSamples;
+            _detailView.Samples = _currentSamples;
+
+            // Selektion & Loop zurücksetzen
+            _overviewView.ClearSelection();
+            _detailView.ClearSelection();
+            _chkLoop.Checked = false;
+
+            // Playhead an den Anfang
+            _playbackSamplePosition = 0;
+            _overviewView.PlaybackSample = 0;
+            _detailView.PlaybackSample = 0;
+
+            UpdateInfo(_currentSampleRate, _currentSamples.Length);
+            UpdatePlaybackTimerInterval();
+
+            _isDirty = true;
+            UpdateWindowTitle();
+        }
+
+        private void _btnNormalize_Click(object sender, EventArgs e)
+        {
+            NormalizeSelection();
         }
     }
 }

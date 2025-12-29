@@ -438,7 +438,7 @@ namespace MinimalSoundEditor
 
             return img;
         }
-        private void EnableHoverZoom(Control c, int grow = 4)
+        private void EnableHoverZoom(Control c, int grow = 6)
         {
             c.MouseEnter += (s, e) =>
             {
@@ -2222,6 +2222,8 @@ namespace MinimalSoundEditor
 
                 return written;
             }
+
+
         }
 
     }

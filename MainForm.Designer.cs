@@ -71,6 +71,7 @@ namespace MinimalSoundEditor
             _overviewPanel = new Panel();
             _overviewView = new WaveformView();
             _detailView = new WaveformView();
+            _btnNormalize = new Button();
             _menuStrip.SuspendLayout();
             _topPanel.SuspendLayout();
             _overviewPanel.SuspendLayout();
@@ -229,6 +230,7 @@ namespace MinimalSoundEditor
             // 
             // _topPanel
             // 
+            _topPanel.Controls.Add(_btnNormalize);
             _topPanel.Controls.Add(_btnFadeOut);
             _topPanel.Controls.Add(_btnFadeIn);
             _topPanel.Controls.Add(_btnTrim);
@@ -261,6 +263,7 @@ namespace MinimalSoundEditor
             _btnFadeOut.Size = new Size(32, 32);
             _btnFadeOut.TabIndex = 14;
             _btnFadeOut.UseVisualStyleBackColor = true;
+            _btnFadeOut.Click += _btnFadeOut_Click;
             // 
             // _btnFadeIn
             // 
@@ -273,6 +276,7 @@ namespace MinimalSoundEditor
             _btnFadeIn.Size = new Size(32, 32);
             _btnFadeIn.TabIndex = 13;
             _btnFadeIn.UseVisualStyleBackColor = true;
+            _btnFadeIn.Click += _btnFadeIn_Click;
             // 
             // _btnTrim
             // 
@@ -285,6 +289,7 @@ namespace MinimalSoundEditor
             _btnTrim.Size = new Size(32, 32);
             _btnTrim.TabIndex = 12;
             _btnTrim.UseVisualStyleBackColor = true;
+            _btnTrim.Click += _btnTrim_Click;
             // 
             // _btnCompress
             // 
@@ -297,6 +302,7 @@ namespace MinimalSoundEditor
             _btnCompress.Size = new Size(32, 32);
             _btnCompress.TabIndex = 11;
             _btnCompress.UseVisualStyleBackColor = true;
+            _btnCompress.Click += _btnCompress_Click;
             // 
             // _btnExport
             // 
@@ -309,6 +315,7 @@ namespace MinimalSoundEditor
             _btnExport.Size = new Size(32, 32);
             _btnExport.TabIndex = 10;
             _btnExport.UseVisualStyleBackColor = true;
+            _btnExport.Click += _btnExport_Click;
             // 
             // _btnSaveAs
             // 
@@ -321,6 +328,7 @@ namespace MinimalSoundEditor
             _btnSaveAs.Size = new Size(32, 32);
             _btnSaveAs.TabIndex = 9;
             _btnSaveAs.UseVisualStyleBackColor = true;
+            _btnSaveAs.Click += _btnSaveAs_Click;
             // 
             // _btnSave
             // 
@@ -333,6 +341,7 @@ namespace MinimalSoundEditor
             _btnSave.Size = new Size(32, 32);
             _btnSave.TabIndex = 8;
             _btnSave.UseVisualStyleBackColor = true;
+            _btnSave.Click += _btnSave_Click;
             // 
             // _chkLoop
             // 
@@ -475,6 +484,19 @@ namespace MinimalSoundEditor
             _detailView.VisibleStartSample = 0;
             _detailView.Zoom = 0.5F;
             // 
+            // _btnNormalize
+            // 
+            _btnNormalize.BackgroundImage = Resource1.icon_normalize;
+            _btnNormalize.BackgroundImageLayout = ImageLayout.Stretch;
+            _btnNormalize.FlatAppearance.BorderSize = 0;
+            _btnNormalize.FlatStyle = FlatStyle.Flat;
+            _btnNormalize.Location = new Point(531, 8);
+            _btnNormalize.Name = "_btnNormalize";
+            _btnNormalize.Size = new Size(32, 32);
+            _btnNormalize.TabIndex = 15;
+            _btnNormalize.UseVisualStyleBackColor = true;
+            _btnNormalize.Click += _btnNormalize_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -542,5 +564,6 @@ namespace MinimalSoundEditor
         private Button _btnFadeIn;
         private Button _btnTrim;
         private Button _btnCompress;
+        private Button _btnNormalize;
     }
 }
