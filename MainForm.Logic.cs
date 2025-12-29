@@ -119,314 +119,314 @@ namespace MinimalSoundEditor
 
         private void InitializeCustomUi()
         {
-            Text = "Minimal Sound Editor";
-            Width = 1000;
-            Height = 600;
-            KeyPreview = true;
+        //    Text = "Minimal Sound Editor";
+        //    Width = 1000;
+        //    Height = 600;
+        //    KeyPreview = true;
 
-            const int toolbarTop = 6;
-            const int toolbarHeight = 36;
+        //    const int toolbarTop = 6;
+        //    const int toolbarHeight = 36;
 
-            // === OVERVIEW (oben, klein) ===
-            _overviewView = new WaveformView
-            {
-                Dock = DockStyle.Fill,
-                Zoom = 0.5f
-            };
-            _overviewView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
-            _overviewView.SelectionChanged += OverviewView_SelectionChanged;
-            _overviewView.MouseDoubleClick += OverviewView_MouseDoubleClick;
+        //    // === OVERVIEW (oben, klein) ===
+        //    _overviewView = new WaveformView
+        //    {
+        //        Dock = DockStyle.Fill,
+        //        Zoom = 0.5f
+        //    };
+        //    _overviewView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
+        //    _overviewView.SelectionChanged += OverviewView_SelectionChanged;
+        //    _overviewView.MouseDoubleClick += OverviewView_MouseDoubleClick;
 
-            _overviewPanel = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 80
-            };
-            _overviewPanel.Controls.Add(_overviewView);
+        //    _overviewPanel = new Panel
+        //    {
+        //        Dock = DockStyle.Top,
+        //        Height = 80
+        //    };
+        //    _overviewPanel.Controls.Add(_overviewView);
 
-            // === DETAIL (unten, Editing) ===
-            _detailView = new WaveformView
-            {
-                Dock = DockStyle.Fill,
-                Zoom = 1.0f
-            };
-            _detailView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
-            _detailView.SelectionChanged += DetailView_SelectionChanged;
+        //    // === DETAIL (unten, Editing) ===
+        //    _detailView = new WaveformView
+        //    {
+        //        Dock = DockStyle.Fill,
+        //        Zoom = 1.0f
+        //    };
+        //    _detailView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
+        //    _detailView.SelectionChanged += DetailView_SelectionChanged;
 
-            // === TOP BUTTON BAR ===
-            _btnOpen = new Button
-            {
-                Text = "",
-                Width = toolbarHeight,
-                Left = 10,
-                Top = toolbarTop,
-                Height = toolbarHeight
-            };
-            _btnOpen.Click += BtnOpen_Click;
+        //    // === TOP BUTTON BAR ===
+        //    _btnOpen = new Button
+        //    {
+        //        Text = "",
+        //        Width = toolbarHeight,
+        //        Left = 10,
+        //        Top = toolbarTop,
+        //        Height = toolbarHeight
+        //    };
+        //    _btnOpen.Click += BtnOpen_Click;
 
            
 
-            _btnDeleteSelection = new Button
-            {
-                Text = "",
-                Width = toolbarHeight,
-                Left = 290,
-                Top = toolbarTop,
-                Height = toolbarHeight
-            };
-            _btnDeleteSelection.Click += BtnDeleteSelection_Click;
+        //    _btnDeleteSelection = new Button
+        //    {
+        //        Text = "",
+        //        Width = toolbarHeight,
+        //        Left = 290,
+        //        Top = toolbarTop,
+        //        Height = toolbarHeight
+        //    };
+        //    _btnDeleteSelection.Click += BtnDeleteSelection_Click;
 
 
-            //_btnUndo = new Button
-            //{
-            //    Text = "",
-            //    Width = toolbarHeight,
-            //    Left = 290 + 42,
-            //    Top = toolbarTop,
-            //    Height = toolbarHeight
-            //};
-            //_btnUndo.Click += BtnUndo_Click;            // ✅ richtig
+        //    //_btnUndo = new Button
+        //    //{
+        //    //    Text = "",
+        //    //    Width = toolbarHeight,
+        //    //    Left = 290 + 42,
+        //    //    Top = toolbarTop,
+        //    //    Height = toolbarHeight
+        //    //};
+        //    //_btnUndo.Click += BtnUndo_Click;            // ✅ richtig
 
 
-            //_btnPlay = new Button
-            //{
-            //    Text = "",
-            //    Width = toolbarHeight,
-            //    Top = toolbarTop,
-            //    Height = toolbarHeight,
-            //    BackColor = Color.Transparent,
-            //    Left = 420
-            //};
-            //_btnPlay.Click += BtnPlay_Click;
+        //    //_btnPlay = new Button
+        //    //{
+        //    //    Text = "",
+        //    //    Width = toolbarHeight,
+        //    //    Top = toolbarTop,
+        //    //    Height = toolbarHeight,
+        //    //    BackColor = Color.Transparent,
+        //    //    Left = 420
+        //    //};
+        //    //_btnPlay.Click += BtnPlay_Click;
 
-            //_btnStop = new Button
-            //{
-            //    Text = "",
-            //    Width = toolbarHeight,
-            //    Left = 420+42,
-            //    Top = toolbarTop,
-            //    Height = toolbarHeight
-            //};
-            //_btnStop.Click += BtnStop_Click;
+        //    //_btnStop = new Button
+        //    //{
+        //    //    Text = "",
+        //    //    Width = toolbarHeight,
+        //    //    Left = 420+42,
+        //    //    Top = toolbarTop,
+        //    //    Height = toolbarHeight
+        //    //};
+        //    //_btnStop.Click += BtnStop_Click;
 
-            _chkLoop = new CheckBox
-            {
-                Appearance = Appearance.Button,
-                Text = "",
-                Width = toolbarHeight,
-                Left = 420+42+42,
-                Top = toolbarTop,
-                Height = toolbarHeight,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            _chkLoop.CheckedChanged += (s, e) =>
-            {
-                _loopEnabled = _chkLoop.Checked;
-            };
+        //    _chkLoop = new CheckBox
+        //    {
+        //        Appearance = Appearance.Button,
+        //        Text = "",
+        //        Width = toolbarHeight,
+        //        Left = 420+42+42,
+        //        Top = toolbarTop,
+        //        Height = toolbarHeight,
+        //        TextAlign = ContentAlignment.MiddleCenter
+        //    };
+        //    _chkLoop.CheckedChanged += (s, e) =>
+        //    {
+        //        _loopEnabled = _chkLoop.Checked;
+        //    };
 
-            //_btnTheme = new Button
-            //{
-            //    Text = "",
-            //    Width = toolbarHeight,
-            //    Left = 660,
-            //    Top = toolbarTop,
-            //    Height = toolbarHeight
-            //};
-            //_btnTheme.Click += (s, e) => OpenThemeSettings();
-            // OPEN (kannst du später auch ein schönes „ordner“-Icon spendieren)
-            StyleToolbarButton(_btnOpen, Resource1.icon_openFile, "");
+        //    //_btnTheme = new Button
+        //    //{
+        //    //    Text = "",
+        //    //    Width = toolbarHeight,
+        //    //    Left = 660,
+        //    //    Top = toolbarTop,
+        //    //    Height = toolbarHeight
+        //    //};
+        //    //_btnTheme.Click += (s, e) => OpenThemeSettings();
+        //    // OPEN (kannst du später auch ein schönes „ordner“-Icon spendieren)
+        //    StyleToolbarButton(_btnOpen, Resource1.icon_openFile, "");
 
-            // DELETE SELECTION
-            StyleToolbarButton(_btnDeleteSelection, Resource1.icon_del, "");
+        //    // DELETE SELECTION
+        //    StyleToolbarButton(_btnDeleteSelection, Resource1.icon_del, "");
 
-            // UNDO
-            StyleToolbarButton(_btnUndo, Resource1.icon_undo, "");
+        //    // UNDO
+        //    StyleToolbarButton(_btnUndo, Resource1.icon_undo, "");
 
-            // PLAY
-            StyleToolbarButton(_btnPlay, Resource1.icon_play, "");
+        //    // PLAY
+        //    StyleToolbarButton(_btnPlay, Resource1.icon_play, "");
 
-            // STOP
-            StyleToolbarButton(_btnStop, Resource1.icon_stop, "");
+        //    // STOP
+        //    StyleToolbarButton(_btnStop, Resource1.icon_stop, "");
 
-            // LOOP – CheckBox als Button mit Icon
-            {
-                Image icon = resizeIconImage( Resource1.icon_loop);
+        //    // LOOP – CheckBox als Button mit Icon
+        //    {
+        //        Image icon = resizeIconImage( Resource1.icon_loop);
 
-                _chkLoop.Image = icon;
-                _chkLoop.ImageAlign = ContentAlignment.MiddleLeft;
-                _chkLoop.Text = "";
-                _chkLoop.TextImageRelation = TextImageRelation.ImageAboveText;
-                _chkLoop.Padding = new Padding(1, 0, 1, 0);
-                _chkLoop.FlatStyle = FlatStyle.Flat;
-                _chkLoop.FlatAppearance.BorderSize = 0;
-                _chkLoop.BackColor = Color.Transparent;
-                _chkLoop.FlatAppearance.MouseOverBackColor = Color.Pink;
-                _chkLoop.FlatAppearance.CheckedBackColor = Color.MediumPurple;
-            }
+        //        _chkLoop.Image = icon;
+        //        _chkLoop.ImageAlign = ContentAlignment.MiddleLeft;
+        //        _chkLoop.Text = "";
+        //        _chkLoop.TextImageRelation = TextImageRelation.ImageAboveText;
+        //        _chkLoop.Padding = new Padding(1, 0, 1, 0);
+        //        _chkLoop.FlatStyle = FlatStyle.Flat;
+        //        _chkLoop.FlatAppearance.BorderSize = 0;
+        //        _chkLoop.BackColor = Color.Transparent;
+        //        _chkLoop.FlatAppearance.MouseOverBackColor = Color.Pink;
+        //        _chkLoop.FlatAppearance.CheckedBackColor = Color.MediumPurple;
+        //    }
 
-            // THEME
-            StyleToolbarButton(_btnTheme, Resource1.icon_themes, "");
+        //    // THEME
+        //    StyleToolbarButton(_btnTheme, Resource1.icon_themes, "");
 
-            //_lblInfo = new Label
-            //{
-            //    Text = "Keine Datei geladen",
-            //    AutoSize = true,
-            //    Left = 760,
-            //    Top = 15
-            //};
+        //    //_lblInfo = new Label
+        //    //{
+        //    //    Text = "Keine Datei geladen",
+        //    //    AutoSize = true,
+        //    //    Left = 760,
+        //    //    Top = 15
+        //    //};
 
-            _topPanel = new Panel
-            {
-                Height = toolbarTop + toolbarHeight + 4, // z.B. 6 + 36 + 4 = 46
-                Dock = DockStyle.Top
-            };
-            _topPanel.Controls.AddRange(new Control[]
-            {
-        _btnOpen,
-        _btnDeleteSelection,
-        _btnUndo,
-        _btnPlay,
-        _btnStop,
-        _chkLoop,
-        _btnTheme,
-        _lblInfo
-            });
+        //    _topPanel = new Panel
+        //    {
+        //        Height = toolbarTop + toolbarHeight + 4, // z.B. 6 + 36 + 4 = 46
+        //        Dock = DockStyle.Top
+        //    };
+        //    _topPanel.Controls.AddRange(new Control[]
+        //    {
+        //_btnOpen,
+        //_btnDeleteSelection,
+        //_btnUndo,
+        //_btnPlay,
+        //_btnStop,
+        //_chkLoop,
+        //_btnTheme,
+        //_lblInfo
+        //    });
 
-            // === MENÜLEISTE ===
-            _menuStrip = new MenuStrip
-            {
-                Dock = DockStyle.Top
-            };
+        //    // === MENÜLEISTE ===
+        //    _menuStrip = new MenuStrip
+        //    {
+        //        Dock = DockStyle.Top
+        //    };
 
-            // --- Datei ---
-            var miFile = new ToolStripMenuItem("&Datei");
+        //    // --- Datei ---
+        //    var miFile = new ToolStripMenuItem("&Datei");
 
-            //var miFileOpen = new ToolStripMenuItem("Öffnen...", null, (s, e) => BtnOpen_Click(s, e))
-            //{
-            //    ShortcutKeys = Keys.Control | Keys.O
-            //};
+        //    //var miFileOpen = new ToolStripMenuItem("Öffnen...", null, (s, e) => BtnOpen_Click(s, e))
+        //    //{
+        //    //    ShortcutKeys = Keys.Control | Keys.O
+        //    //};
 
-            //var miFileSave = new ToolStripMenuItem("Speichern", null, (s, e) => SaveWithPrompt())
-            //{
-            //    ShortcutKeys = Keys.Control | Keys.S
-            //};
+        //    //var miFileSave = new ToolStripMenuItem("Speichern", null, (s, e) => SaveWithPrompt())
+        //    //{
+        //    //    ShortcutKeys = Keys.Control | Keys.S
+        //    //};
 
-            //var miFileSaveAs = new ToolStripMenuItem("Speichern unter...", null, (s, e) => SaveAsWithFormat())
-            //{
-            //    ShortcutKeys = Keys.Control | Keys.Shift | Keys.S
-            //};
+        //    //var miFileSaveAs = new ToolStripMenuItem("Speichern unter...", null, (s, e) => SaveAsWithFormat())
+        //    //{
+        //    //    ShortcutKeys = Keys.Control | Keys.Shift | Keys.S
+        //    //};
 
-            //var miFileExportSel = new ToolStripMenuItem("Auswahl exportieren...", null, (s, e) => ExportSelectionAs())
-            //{
-            //    ShortcutKeys = Keys.Control | Keys.Shift | Keys.E
-            //};
+        //    //var miFileExportSel = new ToolStripMenuItem("Auswahl exportieren...", null, (s, e) => ExportSelectionAs())
+        //    //{
+        //    //    ShortcutKeys = Keys.Control | Keys.Shift | Keys.E
+        //    //};
 
-            //var miFileExit = new ToolStripMenuItem("Beenden", null, (s, e) => Close());
+        //    //var miFileExit = new ToolStripMenuItem("Beenden", null, (s, e) => Close());
 
-            miFile.DropDownItems.AddRange(new ToolStripItem[]
-            {
-        miFileOpen,
-        new ToolStripSeparator(),
-        miFileSave,
-        miFileSaveAs,
-        new ToolStripSeparator(),
-        miFileExportSel,
-        new ToolStripSeparator(),
-        miFileExit
-            });
+        //    miFile.DropDownItems.AddRange(new ToolStripItem[]
+        //    {
+        //miFileOpen,
+        //new ToolStripSeparator(),
+        //miFileSave,
+        //miFileSaveAs,
+        //new ToolStripSeparator(),
+        //miFileExportSel,
+        //new ToolStripSeparator(),
+        //miFileExit
+        //    });
 
-            // --- Ansicht ---
-            var miView = new ToolStripMenuItem("&Ansicht");
+        //    // --- Ansicht ---
+        //    var miView = new ToolStripMenuItem("&Ansicht");
 
             
 
-            //var miViewZoomAll = new ToolStripMenuItem("Alles anzeigen", null, (s, e) => ZoomAll())
-            //{
-            //    ShortcutKeys = Keys.Control | Keys.NumPad0
-            //};
+        //    //var miViewZoomAll = new ToolStripMenuItem("Alles anzeigen", null, (s, e) => ZoomAll())
+        //    //{
+        //    //    ShortcutKeys = Keys.Control | Keys.NumPad0
+        //    //};
 
-            miView.DropDownItems.AddRange(new ToolStripItem[]
-            {
-        miViewZoomAll
-            });
+        //    miView.DropDownItems.AddRange(new ToolStripItem[]
+        //    {
+        //miViewZoomAll
+        //    });
 
-            // --- Theme ---
-            var miTheme = new ToolStripMenuItem("&Theme");
+        //    // --- Theme ---
+        //    var miTheme = new ToolStripMenuItem("&Theme");
 
-            _miThemeLight = new ToolStripMenuItem("Light", null, (s, e) =>
-            {
-                _currentThemeMode = ThemeMode.Light;
-                ApplyTheme();
-                SaveThemeSettings();
-                UpdateThemeMenuChecks();
-            })
-            {
-                CheckOnClick = false
-            };
+        //    _miThemeLight = new ToolStripMenuItem("Light", null, (s, e) =>
+        //    {
+        //        _currentThemeMode = ThemeMode.Light;
+        //        ApplyTheme();
+        //        SaveThemeSettings();
+        //        UpdateThemeMenuChecks();
+        //    })
+        //    {
+        //        CheckOnClick = false
+        //    };
 
-            _miThemeDark = new ToolStripMenuItem("Dark", null, (s, e) =>
-            {
-                _currentThemeMode = ThemeMode.Dark;
-                ApplyTheme();
-                SaveThemeSettings();
-                UpdateThemeMenuChecks();
-            })
-            {
-                CheckOnClick = false
-            };
+        //    _miThemeDark = new ToolStripMenuItem("Dark", null, (s, e) =>
+        //    {
+        //        _currentThemeMode = ThemeMode.Dark;
+        //        ApplyTheme();
+        //        SaveThemeSettings();
+        //        UpdateThemeMenuChecks();
+        //    })
+        //    {
+        //        CheckOnClick = false
+        //    };
 
-            var miThemeSettings = new ToolStripMenuItem("Einstellungen...", null, (s, e) => OpenThemeSettings())
-            {
-                ShortcutKeys = Keys.Control | Keys.T
-            };
+        //    var miThemeSettings = new ToolStripMenuItem("Einstellungen...", null, (s, e) => OpenThemeSettings())
+        //    {
+        //        ShortcutKeys = Keys.Control | Keys.T
+        //    };
 
-            // Presets
-            var miPresets = new ToolStripMenuItem("Presets");
-            var miPresetNeon = new ToolStripMenuItem("Neon", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetNeon));
-            var miPresetConsole = new ToolStripMenuItem("Console Green", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetConsoleGreen));
-            var miPresetSunset = new ToolStripMenuItem("Warm Sunset", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetWarmSunset));
+        //    // Presets
+        //    var miPresets = new ToolStripMenuItem("Presets");
+        //    var miPresetNeon = new ToolStripMenuItem("Neon", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetNeon));
+        //    var miPresetConsole = new ToolStripMenuItem("Console Green", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetConsoleGreen));
+        //    var miPresetSunset = new ToolStripMenuItem("Warm Sunset", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetWarmSunset));
 
-            miPresets.DropDownItems.AddRange(new ToolStripItem[]
-            {
-        miPresetNeon,
-        miPresetConsole,
-        miPresetSunset
-            });
+        //    miPresets.DropDownItems.AddRange(new ToolStripItem[]
+        //    {
+        //miPresetNeon,
+        //miPresetConsole,
+        //miPresetSunset
+        //    });
 
-            miTheme.DropDownItems.AddRange(new ToolStripItem[]
-            {
-        _miThemeLight,
-        _miThemeDark,
-        new ToolStripSeparator(),
-        miThemeSettings,
-        new ToolStripSeparator(),
-        miPresets
-            });
+        //    miTheme.DropDownItems.AddRange(new ToolStripItem[]
+        //    {
+        //_miThemeLight,
+        //_miThemeDark,
+        //new ToolStripSeparator(),
+        //miThemeSettings,
+        //new ToolStripSeparator(),
+        //miPresets
+        //    });
 
-            _menuStrip.Items.AddRange(new ToolStripItem[]
-            {
-        miFile,
-        miView,
-        miTheme
-            });
+        //    _menuStrip.Items.AddRange(new ToolStripItem[]
+        //    {
+        //miFile,
+        //miView,
+        //miTheme
+        //    });
 
-            MainMenuStrip = _menuStrip;
+        //    MainMenuStrip = _menuStrip;
 
-            // === Controls anordnen (Reihenfolge für DockStyle.Top wichtig!) ===
-            Controls.Add(_detailView);    // Fill
-            Controls.Add(_overviewPanel); // Top (unterhalb TopPanel)
-            Controls.Add(_topPanel);      // Top (unterhalb Menü)
-            Controls.Add(_menuStrip);     // Top (ganz oben)
+        //    // === Controls anordnen (Reihenfolge für DockStyle.Top wichtig!) ===
+        //    Controls.Add(_detailView);    // Fill
+        //    Controls.Add(_overviewPanel); // Top (unterhalb TopPanel)
+        //    Controls.Add(_topPanel);      // Top (unterhalb Menü)
+        //    Controls.Add(_menuStrip);     // Top (ganz oben)
 
-            //// === Playback-Timer (UI-Thread) ===
-            //_playbackTimer = new System.Windows.Forms.Timer
-            //{
-            //    Interval = 16
-            //};
-            //_playbackTimer.Tick += PlaybackTimer_Tick;
+        //    //// === Playback-Timer (UI-Thread) ===
+        //    //_playbackTimer = new System.Windows.Forms.Timer
+        //    //{
+        //    //    Interval = 16
+        //    //};
+        //    //_playbackTimer.Tick += PlaybackTimer_Tick;
 
-            //FormClosing += MainForm_FormClosing;
-            //Resize += MainForm_Resize;
+        //    //FormClosing += MainForm_FormClosing;
+        //    //Resize += MainForm_Resize;
         }
         private Image resizeIconImage(Image icon)
         {
@@ -709,18 +709,32 @@ namespace MinimalSoundEditor
 
         private void OverviewView_SelectionChanged(int startSample, int endSample)
         {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
             if (endSample <= startSample)
                 return;
 
-            int length = endSample - startSample;
+            int total = _currentSamples.Length;
+            int selectionLength = endSample - startSample;
 
-            // Zoom im Detail: wie vorher
-            _detailView.VisibleStartSample = startSample;
-            _detailView.VisibleSampleCount = length;
+            // 1 Sekunde in Samples (Fallback 44.1k)
+            int marginSamples = _currentSampleRate > 0 ? _currentSampleRate : 44100;
 
-            // Loop-Bereich merken wir NICHT mehr hier,
-            // sondern fragen später direkt bei den Views nach.
+            // Links nicht unter 0 gehen (keine "negative" Zeit)
+            int viewStart = Math.Max(0, startSample - marginSamples);
+
+            // Rechts: einfach 1 Sekunde dranhängen – das kann ÜBER total hinausgehen
+            int viewCount = selectionLength + marginSamples + marginSamples;
+
+            _detailView.VisibleStartSample = viewStart;
+            _detailView.VisibleSampleCount = viewCount;
+
+            // Auswahl 1:1 in den Detail-View übertragen, aber ohne Event
+            _detailView.SetSelection(startSample, endSample, raiseEvent: false);
         }
+
+
         private void OpenThemeSettings()
         {
             // themes.json neu lesen (falls im Editor geändert)

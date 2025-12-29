@@ -26,6 +26,10 @@ namespace MinimalSoundEditor
             _overviewView.SelectionChanged += OverviewView_SelectionChanged;
             _overviewView.MouseDoubleClick += OverviewView_MouseDoubleClick;
 
+            // Scroll-Verhalten: Overview statisch, Detail scrollbar
+            _overviewView.AllowHorizontalScroll = false;
+            _detailView.AllowHorizontalScroll = true;
+
             // === DETAIL (unten) ===
             _detailView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
             _detailView.SelectionChanged += DetailView_SelectionChanged;
@@ -522,7 +526,7 @@ namespace MinimalSoundEditor
                 return;
 
             _detailView.VisibleStartSample = 0;
-            _detailView.VisibleSampleCount = 0; // 0 = „ganzer Track“
+            _detailView.VisibleSampleCount = _currentSamples.Length; // ganzer Track, aber scrollbar
         }
 
         private void _btnSave_Click(object sender, EventArgs e)

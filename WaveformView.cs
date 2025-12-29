@@ -231,11 +231,18 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>
+        /// Wenn true, kann der sichtbare Ausschnitt horizontal verschoben werden
+        /// (z.B. per Mausrad oder Auto-Scroll beim Draggen).
+        /// </summary>
+        public bool AllowHorizontalScroll { get; set; } = true;
+
         private bool HasSelection =>
             _samples.Length > 0 &&
             _selectionStartSample.HasValue &&
             _selectionEndSample.HasValue &&
             _selectionStartSample.Value != _selectionEndSample.Value;
+
 
         /// <summary>
         /// Öffentliche Abfrage, ob aktuell eine Selektion existiert.
@@ -288,17 +295,19 @@ namespace MinimalSoundEditor
             }
 
             // Sichtfenster berechnen
-            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
-            int maxCount = totalSamples - viewStart;
+            // -> Darf jetzt ÜBER das Dateiende hinausreichen.
+            // Alles hinter totalSamples wird einfach als „Stille“ gezeichnet.
+            int viewStart = Math.Max(0, _visibleStartSample);
             int viewCount = _visibleSampleCount > 0
-                ? Math.Min(_visibleSampleCount, maxCount)
-                : maxCount;
+                ? _visibleSampleCount
+                : Math.Max(0, totalSamples - viewStart);
 
             if (viewCount <= 0)
             {
                 g.Clear(BackColor);
                 return;
             }
+
 
             // Haben sich Geometrie / Sichtfenster geändert?
             if (width != _cachedWidth ||
@@ -607,14 +616,14 @@ namespace MinimalSoundEditor
             if (width <= 1 || totalSamples == 0)
                 return 0;
 
-            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
-            int maxCount = totalSamples - viewStart;
+            int viewStart = Math.Max(0, _visibleStartSample);
             int viewCount = _visibleSampleCount > 0
-                ? Math.Min(_visibleSampleCount, maxCount)
-                : maxCount;
+                ? _visibleSampleCount
+                : Math.Max(0, totalSamples - viewStart);
 
             if (viewCount <= 0)
                 return 0;
+
 
             x = Math.Max(0, Math.Min(width - 1, x));
 
@@ -639,11 +648,10 @@ namespace MinimalSoundEditor
             if (width <= 1 || totalSamples == 0)
                 return 0;
 
-            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
-            int maxCount = totalSamples - viewStart;
+            int viewStart = Math.Max(0, _visibleStartSample);
             int viewCount = _visibleSampleCount > 0
-                ? Math.Min(_visibleSampleCount, maxCount)
-                : maxCount;
+                ? _visibleSampleCount
+                : Math.Max(0, totalSamples - viewStart);
 
             if (viewCount <= 0)
                 return 0;
@@ -652,12 +660,12 @@ namespace MinimalSoundEditor
             if (local < 0) local = 0;
             if (local > viewCount) local = viewCount;
 
-            // ✅ vorher float-Rechnung; hier machen wir’s „overflow-sicher“:
             long xLong = (long)local * (width - 1) / viewCount;
             int x = (int)xLong;
 
             return x;
         }
+
 
 
         // --------------------------------------------------------------------
@@ -673,6 +681,7 @@ namespace MinimalSoundEditor
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
+            Focus();
             if (_samples == null || _samples.Length == 0) return;
 
             int totalSamples = _samples.Length;
@@ -742,6 +751,61 @@ namespace MinimalSoundEditor
             Invalidate();
         }
 
+        private void AutoScrollWhileDragging(MouseEventArgs e, int totalSamples)
+        {
+            if (!AllowHorizontalScroll)
+                return;
+
+            int width = ClientSize.Width;
+            if (width <= 0 || totalSamples <= 0)
+                return;
+
+            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
+            int maxCount = totalSamples - viewStart;
+            int viewCount = _visibleSampleCount > 0
+                ? Math.Min(_visibleSampleCount, maxCount)
+                : maxCount;
+
+            if (viewCount <= 0)
+                return;
+
+            const int edgePixels = 16;
+            int scrollDeltaSamples = Math.Max(1, viewCount / 50); // ~2 % des Fensters
+
+            bool changed = false;
+
+            if (e.X <= edgePixels && viewStart > 0)
+            {
+                int newStart = viewStart - scrollDeltaSamples;
+                if (newStart < 0) newStart = 0;
+                _visibleStartSample = newStart;
+
+                if (_visibleSampleCount <= 0)
+                    _visibleSampleCount = viewCount;
+
+                changed = true;
+            }
+            else if (e.X >= width - edgePixels && viewStart + viewCount < totalSamples)
+            {
+                int maxStart = Math.Max(0, totalSamples - viewCount);
+                int newStart = viewStart + scrollDeltaSamples;
+                if (newStart > maxStart) newStart = maxStart;
+                _visibleStartSample = newStart;
+
+                if (_visibleSampleCount <= 0)
+                    _visibleSampleCount = viewCount;
+
+                changed = true;
+            }
+
+            if (changed)
+            {
+                MarkPeaksDirty();
+                MarkBitmapDirty();
+                Invalidate();
+            }
+        }
+
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
@@ -799,7 +863,11 @@ namespace MinimalSoundEditor
             if (!_isMouseDown || _dragMode == DragMode.None)
                 return;
 
+            // Auto-Scroll, wenn wir beim Draggen an den Rand fahren
+            AutoScrollWhileDragging(e, totalSamples);
+
             int idx = XToSampleIndex(e.X);
+
 
             switch (_dragMode)
             {
@@ -864,6 +932,61 @@ namespace MinimalSoundEditor
             Cursor = Cursors.Default;
             _isHoveringEdge = false;
         }
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            base.OnMouseWheel(e);
+
+            if (!AllowHorizontalScroll)
+                return;
+
+            if (_samples == null || _samples.Length == 0)
+                return;
+
+            int totalSamples = _samples.Length;
+            int width = ClientSize.Width;
+            if (width <= 0 || totalSamples <= 0)
+                return;
+
+            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
+            int maxCount = totalSamples - viewStart;
+            int viewCount = _visibleSampleCount > 0
+                ? Math.Min(_visibleSampleCount, maxCount)
+                : maxCount;
+
+            if (viewCount <= 0)
+                return;
+
+            // ~10 % des aktuellen Fensters pro Wheel-Tick
+            int scrollDeltaSamples = Math.Max(1, viewCount / 10);
+
+            int newStart = viewStart;
+
+            if (e.Delta > 0)
+            {
+                // Rad nach oben -> nach links
+                newStart = Math.Max(0, viewStart - scrollDeltaSamples);
+            }
+            else if (e.Delta < 0)
+            {
+                // Rad nach unten -> nach rechts
+                int maxStart = Math.Max(0, totalSamples - viewCount);
+                newStart = Math.Min(maxStart, viewStart + scrollDeltaSamples);
+            }
+
+            if (newStart != viewStart)
+            {
+                _visibleStartSample = newStart;
+
+                if (_visibleSampleCount <= 0)
+                    _visibleSampleCount = viewCount;
+
+                MarkPeaksDirty();
+                MarkBitmapDirty();
+                Invalidate();
+            }
+        }
+
+
 
         // --------------------------------------------------------------------
         // Public API für Selektion
