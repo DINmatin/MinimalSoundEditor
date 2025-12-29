@@ -715,24 +715,26 @@ namespace MinimalSoundEditor
             if (endSample <= startSample)
                 return;
 
-            int total = _currentSamples.Length;
             int selectionLength = endSample - startSample;
 
-            // 1 Sekunde in Samples (Fallback 44.1k)
+            // 1 Sekunde Puffer links + rechts (Fallback 44.1k)
             int marginSamples = _currentSampleRate > 0 ? _currentSampleRate : 44100;
 
-            // Links nicht unter 0 gehen (keine "negative" Zeit)
-            int viewStart = Math.Max(0, startSample - marginSamples);
+            // Sichtfenster: Auswahl + 1s davor + 1s danach
+            // Darf VOR 0 und HINTER dem Clip liegen – WaveformView zeichnet dort Stille.
+            int viewStart = startSample - marginSamples;              // kann NEGATIV sein
+            int viewCount = selectionLength + marginSamples * 2;
 
-            // Rechts: einfach 1 Sekunde dranhängen – das kann ÜBER total hinausgehen
-            int viewCount = selectionLength + marginSamples + marginSamples;
+            if (viewCount <= 0)
+                viewCount = selectionLength; // Fallback, sollte praktisch nie vorkommen
 
             _detailView.VisibleStartSample = viewStart;
             _detailView.VisibleSampleCount = viewCount;
 
-            // Auswahl 1:1 in den Detail-View übertragen, aber ohne Event
+            // Auswahl selbst bleibt exakt, nur Darstellung hat Luft
             _detailView.SetSelection(startSample, endSample, raiseEvent: false);
         }
+
 
 
         private void OpenThemeSettings()
