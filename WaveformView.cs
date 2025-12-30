@@ -183,13 +183,32 @@ namespace MinimalSoundEditor
         {
             if (theme == null) return;
 
-            _theme = theme;
+            // eigenes Theme-Objekt pro View (kein Shared-Reference mehr)
+            _theme = new WaveformViewTheme
+            {
+                Background = theme.Background,
+                WaveColor = theme.WaveColor,
+                ZeroLineColor = theme.ZeroLineColor,
+                SelectionFillColor = theme.SelectionFillColor,
+                SelectionEdgeColor = theme.SelectionEdgeColor,
+                PlayheadColor = theme.PlayheadColor,
+                TextColor = theme.TextColor
+            };
+
             BackColor = _theme.Background;
 
-            // 👇 WICHTIG: Bitmap & Peaks ungültig machen
             MarkPeaksDirty();
             MarkBitmapDirty();
+            Invalidate();
+        }
 
+        public void SetSelectionColors(Color fill, Color edge)
+        {
+            if (_theme == null)
+                _theme = new WaveformViewTheme();
+
+            _theme.SelectionFillColor = fill;
+            _theme.SelectionEdgeColor = edge;
             Invalidate();
         }
 

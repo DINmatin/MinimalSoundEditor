@@ -535,10 +535,28 @@ namespace MinimalSoundEditor
             UpdatePlayButtonVisualState();
 
             if (_overviewView != null)
+            {
                 _overviewView.ApplyTheme(t.Waveform);
 
+                // Overview: schwächerer, transparenter Selection-Balken
+                var baseFill = t.Waveform.SelectionFillColor;
+                var baseEdge = t.Waveform.SelectionEdgeColor;
+
+                var ovFill = Color.FromArgb(80, baseFill.R, baseFill.G, baseFill.B);   // halbtransparent
+                var ovEdge = Color.FromArgb(160, baseEdge.R, baseEdge.G, baseEdge.B);   // etwas kräftigerer Rand
+
+                _overviewView.SetSelectionColors(ovFill, ovEdge);
+            }
+
             if (_detailView != null)
+            {
                 _detailView.ApplyTheme(t.Waveform);
+
+                // Detail: volle Bearbeitungs-Selektion (Originalfarben)
+                _detailView.SetSelectionColors(
+                    t.Waveform.SelectionFillColor,
+                    t.Waveform.SelectionEdgeColor);
+            }
         }
         private void StyleButtons(Control parent, ThemeDefinition theme)
         {
@@ -1946,19 +1964,11 @@ namespace MinimalSoundEditor
         //    ExportSamplesToFile(sel, _currentSampleRate, path, format);
         //}
 
-        private bool TryGetCurrentSelection(out int startSample, out int endSample)
+        bool TryGetCurrentSelection(out int startSample, out int endSample)
         {
-            // zuerst Detail-View
+            // Nur noch Detail-View gilt als "Bearbeitungs-Selektion"
             if (_detailView != null &&
                 _detailView.TryGetSelection(out startSample, out endSample) &&
-                endSample > startSample)
-            {
-                return true;
-            }
-
-            // dann Overview-View
-            if (_overviewView != null &&
-                _overviewView.TryGetSelection(out startSample, out endSample) &&
                 endSample > startSample)
             {
                 return true;
@@ -1968,6 +1978,7 @@ namespace MinimalSoundEditor
             endSample = 0;
             return false;
         }
+
 
         private void JumpToSample(int sampleIndex, bool restartIfPlaying)
         {
