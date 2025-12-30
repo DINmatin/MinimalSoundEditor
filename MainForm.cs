@@ -150,13 +150,37 @@ namespace MinimalSoundEditor
                 new ToolStripMenuItem("Fade Out", null,
                     (s, e) => _btnFadeOut_Click(_detailView, EventArgs.Empty)));
 
+            // Cut = wie DeleteSelection(dein DEL - Handler)
+            _detailContextMenu.Items.Add(
+                new ToolStripMenuItem("Cut selection", null,
+                    (s, e) => BtnDeleteSelection_Click(_detailView, EventArgs.Empty)));
+
+            // Silence-Submenü
+            var silenceMenu = new ToolStripMenuItem("Silence");
+
+            silenceMenu.DropDownItems.Add(
+                new ToolStripMenuItem("Mute selection", null,
+                    (s, e) => MuteSelection()));
+
+            silenceMenu.DropDownItems.Add(
+                new ToolStripMenuItem("Insert before", null,
+                    (s, e) => InsertSilenceBeforeSelection()));
+
+            silenceMenu.DropDownItems.Add(
+                new ToolStripMenuItem("Insert after", null,
+                    (s, e) => InsertSilenceAfterSelection()));
+
+            _detailContextMenu.Items.Add(silenceMenu);
             _detailContextMenu.Items.Add(new ToolStripSeparator());
 
             // Export Selection
             _detailContextMenu.Items.Add(
                 new ToolStripMenuItem("Export...", null,
                     (s, e) => ExportSelection()));
+            //Donate
 
+            _detailContextMenu.Items.Add(new ToolStripSeparator());
+            _detailContextMenu.Items.Add(new ToolStripLabel());
             // Dem DetailView zuweisen
             _detailView.ContextMenuStrip = _detailContextMenu;
         }
@@ -222,6 +246,190 @@ namespace MinimalSoundEditor
             {
                 _overviewView.SetSelection(ovStart, ovEnd, raiseEvent: false);
             }
+        }
+
+        private void MuteSelection()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Silence / Mute",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int length = end - start;
+            if (length <= 0)
+                return;
+
+            // Undo sichern
+            _undoStack.Push(CloneSamples(_currentSamples));
+
+            // Stummschalten
+            for (int i = start; i < end && i < _currentSamples.Length; i++)
+            {
+                _currentSamples[i] = 0f;
+            }
+
+            // Views neu füttern + Zoom & Selektion wiederherstellen (wie bei NormalizeSelection)
+            int oldVisibleStart = _detailView.VisibleStartSample;
+            int oldVisibleCount = _detailView.VisibleSampleCount;
+
+            _overviewView.Samples = _currentSamples;
+            _detailView.Samples = _currentSamples;
+
+            _detailView.VisibleStartSample = oldVisibleStart;
+            _detailView.VisibleSampleCount = oldVisibleCount;
+
+            _overviewView.SetSelection(start, end, raiseEvent: false);
+            _detailView.SetSelection(start, end, raiseEvent: false);
+
+            _overviewView.PlaybackSample = _playbackSamplePosition;
+            _detailView.PlaybackSample = _playbackSamplePosition;
+
+            UpdateInfo(_currentSampleRate, _currentSamples.Length);
+            UpdatePlaybackTimerInterval();
+
+            _isDirty = true;
+            UpdateWindowTitle();
+        }
+
+        private void InsertSilenceBeforeSelection()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Silence / Insert before",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int length = end - start;
+            if (length <= 0)
+                return;
+
+            int total = _currentSamples.Length;
+
+            // Undo sichern
+            _undoStack.Push(CloneSamples(_currentSamples));
+
+            var newSamples = new float[total + length];
+
+            // 0..start-1 unverändert
+            if (start > 0)
+                Array.Copy(_currentSamples, 0, newSamples, 0, start);
+
+            // [start, start+length) bleibt 0.0f = Stille
+
+            // Rest hinter der Selektion verschieben
+            Array.Copy(_currentSamples, start, newSamples, start + length, total - start);
+
+            _currentSamples = newSamples;
+            int newTotal = _currentSamples.Length;
+
+            // Zoom im DetailView beibehalten
+            int oldVisibleStart = _detailView.VisibleStartSample;
+            int oldVisibleCount = _detailView.VisibleSampleCount;
+
+            _overviewView.Samples = _currentSamples;
+            _detailView.Samples = _currentSamples;
+
+            _detailView.VisibleStartSample = oldVisibleStart;
+            _detailView.VisibleSampleCount = oldVisibleCount;
+
+            // Selektion soll weiter den ursprünglichen Content markieren → nach rechts verschoben
+            int newSelStart = start + length;
+            int newSelEnd = end + length;
+
+            _overviewView.SetSelection(newSelStart, newSelEnd, raiseEvent: false);
+            _detailView.SetSelection(newSelStart, newSelEnd, raiseEvent: false);
+
+            // Playhead, falls rechts vom Insert-Punkt, mitverschieben
+            if (_playbackSamplePosition >= start)
+                _playbackSamplePosition += length;
+            if (_playbackSamplePosition >= newTotal)
+                _playbackSamplePosition = newTotal - 1;
+
+            _overviewView.PlaybackSample = _playbackSamplePosition;
+            _detailView.PlaybackSample = _playbackSamplePosition;
+
+            UpdateInfo(_currentSampleRate, newTotal);
+            UpdatePlaybackTimerInterval();
+
+            _chkLoop.Checked = false;
+            _isDirty = true;
+            UpdateWindowTitle();
+        }
+
+        private void InsertSilenceAfterSelection()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Silence / Insert after",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int length = end - start;
+            if (length <= 0)
+                return;
+
+            int total = _currentSamples.Length;
+            int insertPos = end; // direkt hinter der Auswahl
+
+            // Undo sichern
+            _undoStack.Push(CloneSamples(_currentSamples));
+
+            var newSamples = new float[total + length];
+
+            // Alles bis inkl. Auswahl übernehmen
+            if (insertPos > 0)
+                Array.Copy(_currentSamples, 0, newSamples, 0, insertPos);
+
+            // [insertPos, insertPos+length) = Stille (default 0.0f)
+
+            // Rest hinten anhängen
+            Array.Copy(_currentSamples, insertPos, newSamples, insertPos + length, total - insertPos);
+
+            _currentSamples = newSamples;
+            int newTotal = _currentSamples.Length;
+
+            // Zoom im DetailView beibehalten
+            int oldVisibleStart = _detailView.VisibleStartSample;
+            int oldVisibleCount = _detailView.VisibleSampleCount;
+
+            _overviewView.Samples = _currentSamples;
+            _detailView.Samples = _currentSamples;
+
+            _detailView.VisibleStartSample = oldVisibleStart;
+            _detailView.VisibleSampleCount = oldVisibleCount;
+
+            // Auswahl bleibt auf dem ursprünglichen Content [start, end]
+            _overviewView.SetSelection(start, end, raiseEvent: false);
+            _detailView.SetSelection(start, end, raiseEvent: false);
+
+            // Playhead, falls hinter dem Insert-Punkt, mitschieben
+            if (_playbackSamplePosition >= insertPos)
+                _playbackSamplePosition += length;
+            if (_playbackSamplePosition >= newTotal)
+                _playbackSamplePosition = newTotal - 1;
+
+            _overviewView.PlaybackSample = _playbackSamplePosition;
+            _detailView.PlaybackSample = _playbackSamplePosition;
+
+            UpdateInfo(_currentSampleRate, newTotal);
+            UpdatePlaybackTimerInterval();
+
+            _chkLoop.Checked = false;
+            _isDirty = true;
+            UpdateWindowTitle();
         }
 
 

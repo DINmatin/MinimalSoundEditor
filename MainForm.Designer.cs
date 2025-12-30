@@ -100,6 +100,7 @@ namespace MinimalSoundEditor
             // 
             // miFileOpen
             // 
+            miFileOpen.Image = Resource1.icon_openFile;
             miFileOpen.Name = "miFileOpen";
             miFileOpen.ShortcutKeys = Keys.Control | Keys.O;
             miFileOpen.Size = new Size(253, 22);
@@ -113,6 +114,7 @@ namespace MinimalSoundEditor
             // 
             // miFileSave
             // 
+            miFileSave.Image = Resource1.icon_save;
             miFileSave.Name = "miFileSave";
             miFileSave.ShortcutKeys = Keys.Control | Keys.S;
             miFileSave.Size = new Size(253, 22);
@@ -121,6 +123,7 @@ namespace MinimalSoundEditor
             // 
             // miFileSaveAs
             // 
+            miFileSaveAs.Image = Resource1.icon_saveAs;
             miFileSaveAs.Name = "miFileSaveAs";
             miFileSaveAs.ShortcutKeys = Keys.Control | Keys.Shift | Keys.S;
             miFileSaveAs.Size = new Size(253, 22);
@@ -134,6 +137,7 @@ namespace MinimalSoundEditor
             // 
             // miFileExportSel
             // 
+            miFileExportSel.Image = Resource1.icon_export;
             miFileExportSel.Name = "miFileExportSel";
             miFileExportSel.ShortcutKeys = Keys.Control | Keys.Shift | Keys.E;
             miFileExportSel.Size = new Size(253, 22);
@@ -178,36 +182,36 @@ namespace MinimalSoundEditor
             // toolStripMenuItem3
             // 
             toolStripMenuItem3.Name = "toolStripMenuItem3";
-            toolStripMenuItem3.Size = new Size(145, 22);
+            toolStripMenuItem3.Size = new Size(180, 22);
             toolStripMenuItem3.Text = "Light";
             // 
             // darkToolStripMenuItem
             // 
             darkToolStripMenuItem.Name = "darkToolStripMenuItem";
-            darkToolStripMenuItem.Size = new Size(145, 22);
+            darkToolStripMenuItem.Size = new Size(180, 22);
             darkToolStripMenuItem.Text = "Dark";
             // 
             // toolStripSeparator4
             // 
             toolStripSeparator4.Name = "toolStripSeparator4";
-            toolStripSeparator4.Size = new Size(142, 6);
+            toolStripSeparator4.Size = new Size(177, 6);
             // 
             // einstellungenToolStripMenuItem
             // 
             einstellungenToolStripMenuItem.Name = "einstellungenToolStripMenuItem";
-            einstellungenToolStripMenuItem.Size = new Size(145, 22);
+            einstellungenToolStripMenuItem.Size = new Size(180, 22);
             einstellungenToolStripMenuItem.Text = "Einstellungen";
             // 
             // toolStripSeparator5
             // 
             toolStripSeparator5.Name = "toolStripSeparator5";
-            toolStripSeparator5.Size = new Size(142, 6);
+            toolStripSeparator5.Size = new Size(177, 6);
             // 
             // presetsToolStripMenuItem
             // 
             presetsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { neonToolStripMenuItem, consoleToolStripMenuItem, sunsetToolStripMenuItem });
             presetsToolStripMenuItem.Name = "presetsToolStripMenuItem";
-            presetsToolStripMenuItem.Size = new Size(145, 22);
+            presetsToolStripMenuItem.Size = new Size(180, 22);
             presetsToolStripMenuItem.Text = "Presets";
             // 
             // neonToolStripMenuItem
@@ -477,6 +481,7 @@ namespace MinimalSoundEditor
             _overviewView.Name = "_overviewView";
             _overviewView.PlaybackSample = 0;
             _overviewView.SampleRate = 44100;
+            _overviewView.ShowDbScale = false;
             _overviewView.Size = new Size(1184, 80);
             _overviewView.TabIndex = 0;
             _overviewView.Text = "waveformView1";
@@ -494,6 +499,7 @@ namespace MinimalSoundEditor
             _detailView.Name = "_detailView";
             _detailView.PlaybackSample = 0;
             _detailView.SampleRate = 44100;
+            _detailView.ShowDbScale = false;
             _detailView.Size = new Size(1184, 411);
             _detailView.TabIndex = 4;
             _detailView.Text = "waveformView1";
