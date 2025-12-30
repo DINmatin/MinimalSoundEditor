@@ -733,8 +733,13 @@ namespace MinimalSoundEditor
 
             int sampleIndex = viewStart + localIndex;
 
+            // Links hart auf 0 klemmen ...
             if (sampleIndex < 0) sampleIndex = 0;
-            if (sampleIndex >= totalSamples) sampleIndex = totalSamples - 1;
+
+            // ... rechts aber EINEN Schritt über das Ende erlauben:
+            // sampleIndex == totalSamples bedeutet: "Locator steht im Air-Bereich
+            // direkt hinter dem letzten Sample" -> ideal als exklusives End-Index.
+            if (sampleIndex > totalSamples) sampleIndex = totalSamples;
 
             return sampleIndex;
         }
