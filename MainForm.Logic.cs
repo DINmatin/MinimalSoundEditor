@@ -2119,41 +2119,40 @@ namespace MinimalSoundEditor
 
             if (_clipboardSamples == null || _clipboardSamples.Length == 0)
             {
-                MessageBox.Show(this, "Clipboard ist leer (keine Audiodaten kopiert).", "Paste (overwrite)",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            if (!TryGetCurrentSelection(out int start, out int end))
-            {
-                MessageBox.Show(this, "Kein Bereich selektiert.", "Paste (overwrite)",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this,
+                    "Clipboard ist leer (keine Audiodaten kopiert).",
+                    "Paste (overwrite)",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
                 return;
             }
 
             int total = _currentSamples.Length;
-            int selLen = end - start;
-            if (selLen <= 0)
-                return;
-
             int clipLen = _clipboardSamples.Length;
 
-            // wir überschreiben nur, was in den Clip passt
-            int len = Math.Min(clipLen, total - start);
-            if (len <= 0)
-                return;
+            // Start-Position = aktueller Lokator (Playhead)
+            int start = _playbackSamplePosition;
+            if (start < 0) start = 0;
+            if (start > total) start = total; // am Ende einfügen/überschreiben
 
             // Undo sichern
             _undoStack.Push(CloneSamples(_currentSamples));
 
-            for (int i = 0; i < len; i++)
-            {
-                _currentSamples[start + i] = _clipboardSamples[i];
-            }
+            // neue Gesamtlänge: genug, damit das Clipboard vollständig hineinpasst
+            int newTotal = Math.Max(total, start + clipLen);
+            var newSamples = new float[newTotal];
 
-            int newTotal = total;
+            // vorhandenes Material übernehmen
+            // (wird gleich teilweise überschrieben, wo Clipboard liegt)
+            if (total > 0)
+                Array.Copy(_currentSamples, 0, newSamples, 0, total);
 
-            // Zoom im DetailView beibehalten
+            // Clipboard auf [start, start+clipLen) kopieren
+            Array.Copy(_clipboardSamples, 0, newSamples, start, clipLen);
+
+            _currentSamples = newSamples;
+
+            // Zoom / Fenster im DetailView möglichst beibehalten
             int oldVisibleStart = _detailView.VisibleStartSample;
             int oldVisibleCount = _detailView.VisibleSampleCount;
 
@@ -2171,25 +2170,27 @@ namespace MinimalSoundEditor
             _detailView.VisibleStartSample = oldVisibleStart;
             _detailView.VisibleSampleCount = oldVisibleCount;
 
-            // Selektion beibehalten
-            _detailView.SetSelection(start, end, raiseEvent: true);
-            _overviewView.SetSelection(start, end, raiseEvent: false);
+            // neu eingefügten/überschriebenen Bereich selektieren
+            int selStart = start;
+            int selEnd = start + clipLen;
+            if (selEnd > newTotal) selEnd = newTotal;
 
-            // Playhead clampen
-            if (_playbackSamplePosition >= newTotal)
-                _playbackSamplePosition = newTotal - 1;
-            if (_playbackSamplePosition < 0 && newTotal > 0)
-                _playbackSamplePosition = 0;
+            _detailView.SetSelection(selStart, selEnd, raiseEvent: true);
+            _overviewView.SetSelection(selStart, selEnd, raiseEvent: false);
 
+            // Lokator ans Ende des eingefügten Blocks setzen
+            _playbackSamplePosition = Math.Min(selEnd, newTotal - 1);
             _overviewView.PlaybackSample = _playbackSamplePosition;
             _detailView.PlaybackSample = _playbackSamplePosition;
 
             UpdateInfo(_currentSampleRate, newTotal);
             UpdatePlaybackTimerInterval();
 
+            _chkLoop.Checked = false;
             _isDirty = true;
             UpdateWindowTitle();
         }
+
 
         private void ApplyColorSetToTheme(ThemeColorSet set, ThemeDefinition t)
         {
