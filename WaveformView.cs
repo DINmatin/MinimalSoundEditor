@@ -1276,13 +1276,17 @@ namespace MinimalSoundEditor
 
                 if (sel.start != sel.end)
                 {
+                    // gültige Selektion -> Event feuern
                     SelectionChanged?.Invoke(sel.start, sel.end);
                 }
                 else
                 {
+                    // Selektion wurde "zusammengeklappt" -> löschen und ebenfalls melden
                     ClearSelection();
+                    SelectionChanged?.Invoke(0, 0);
                 }
             }
+
 
             _dragMode = DragMode.None;
             Cursor = Cursors.Default;

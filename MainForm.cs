@@ -124,22 +124,22 @@ namespace MinimalSoundEditor
 
             // Zoom Selection
             _detailContextMenu.Items.Add(
-                new ToolStripMenuItem("Zoom Selection", null,
+                new ToolStripMenuItem("Zoom", null,
                     (s, e) => ZoomSelection()));
 
             _detailContextMenu.Items.Add(new ToolStripSeparator());
 
             // Normalize Selection
             _detailContextMenu.Items.Add(
-                new ToolStripMenuItem("Normalize Selection", null,
+                new ToolStripMenuItem("Normalize", null,
                     (s, e) => NormalizeSelection()));
 
             // Compress Selection – ruft erstmal deinen Button-Handler auf
             _detailContextMenu.Items.Add(
-                new ToolStripMenuItem("Compress Selection", null,
+                new ToolStripMenuItem("Compress", null,
                     (s, e) => _btnCompress_Click(_detailView, EventArgs.Empty)));
 
-            _detailContextMenu.Items.Add(new ToolStripSeparator());
+            //_detailContextMenu.Items.Add(new ToolStripSeparator());
 
             // Fade In / Fade Out – gleich wie Buttons
             _detailContextMenu.Items.Add(
@@ -154,7 +154,7 @@ namespace MinimalSoundEditor
 
             // Export Selection
             _detailContextMenu.Items.Add(
-                new ToolStripMenuItem("Export Selection...", null,
+                new ToolStripMenuItem("Export...", null,
                     (s, e) => ExportSelection()));
 
             // Dem DetailView zuweisen

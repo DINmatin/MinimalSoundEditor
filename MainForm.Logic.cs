@@ -1259,48 +1259,51 @@ namespace MinimalSoundEditor
             if (_undoStack.Count == 0)
                 return;
 
-            // Aktuelle Selektion merken (falls vorhanden)
-            bool hadSelection = TryGetCurrentSelection(out int selStart, out int selEnd);
+            // Aktuelle Bearbeitungs-Selektion im DETAIL-Fenster merken
+            bool hadSelection = false;
+            int selStart = 0;
+            int selEnd = 0;
 
-            // Ursprungszustand der Samples wiederherstellen
+            if (_detailView != null &&
+                _detailView.TryGetSelection(out selStart, out selEnd) &&
+                selEnd > selStart)
+            {
+                hadSelection = true;
+            }
+
+            // Samples aus dem Undo-Stack wiederherstellen
             _currentSamples = _undoStack.Pop();
 
             _overviewView.Samples = _currentSamples;
             _detailView.Samples = _currentSamples;
 
-            // Playhead zurück an den Anfang
+            // Samples-Setter setzt selber VisibleStart/Count und löscht Selektion,
+            // deshalb jetzt alles wieder neu aufbauen:
+
             _playbackSamplePosition = 0;
             _overviewView.PlaybackSample = 0;
             _detailView.PlaybackSample = 0;
 
-            // Infos/Timer aktualisieren
             UpdateInfo(_currentSampleRate, _currentSamples.Length);
             UpdatePlaybackTimerInterval();
 
             _chkLoop.Checked = false;
 
-            // Selektion wiederherstellen (so gut es geht)
-            if (hadSelection && _currentSamples.Length > 0)
+            // Selektion im DetailView wiederherstellen (so gut es geht)
+            if (hadSelection && _currentSamples != null && _currentSamples.Length > 0 && _detailView != null)
             {
                 int total = _currentSamples.Length;
 
                 // innerhalb der neuen Länge einklemmen
-                if (selStart < 0) selStart = 0;
-                if (selStart >= total) selStart = total - 1;
+                selStart = Math.Max(0, Math.Min(selStart, total - 1));
+                selEnd = Math.Max(selStart + 1, Math.Min(selEnd, total));
 
-                if (selEnd <= selStart) selEnd = selStart + 1;
-                if (selEnd > total) selEnd = total;
-
-                // Über den Overview setzen – triggert OverviewView_SelectionChanged
-                // und stellt DetailView + Luft (±1s) automatisch ein.
-                _overviewView.SetSelection(selStart, selEnd, raiseEvent: true);
-            }
-            else
-            {
-                _overviewView.ClearSelection();
-                _detailView.ClearSelection();
+                // setzt NUR die Bearbeitungs-Selektion unten,
+                // Overview-Highlight kommt (falls implementiert) über SelectionChanged-Event
+                _detailView.SetSelection(selStart, selEnd, raiseEvent: true);
             }
         }
+
 
 
         // PLAY
@@ -1976,7 +1979,7 @@ namespace MinimalSoundEditor
 
         bool TryGetCurrentSelection(out int startSample, out int endSample)
         {
-            // Nur die Selection im DETAIL-View gilt als Bearbeitungsbereich
+            // Bearbeitungs-Selektion kommt NUR aus dem DetailView
             if (_detailView != null &&
                 _detailView.TryGetSelection(out startSample, out endSample) &&
                 endSample > startSample)
@@ -1988,7 +1991,6 @@ namespace MinimalSoundEditor
             endSample = 0;
             return false;
         }
-
 
 
         private void JumpToSample(int sampleIndex, bool restartIfPlaying)
