@@ -13,6 +13,8 @@ namespace MinimalSoundEditor
 {
     public partial class MainForm : Form
     {
+        private ContextMenuStrip _detailContextMenu;
+
         public MainForm()
         {
             // 1) Designer-Init
@@ -38,6 +40,8 @@ namespace MinimalSoundEditor
             _detailView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
             _detailView.SelectionChanged += DetailView_SelectionChanged;
             _detailView.VisibleRangeChanged += DetailView_VisibleRangeChanged;
+
+            InitDetailContextMenu();
 
             // Loop
             _chkLoop.CheckedChanged += (s, e) =>
@@ -110,6 +114,114 @@ namespace MinimalSoundEditor
             EnableHoverZoom(_btnFadeIn);
             EnableHoverZoom(_btnFadeOut);
             EnableHoverZoom(_chkLoop);
+        }
+
+        private void InitDetailContextMenu()
+        {
+            _detailContextMenu = new ContextMenuStrip();
+            _detailContextMenu.ShowImageMargin = false;
+            _detailContextMenu.Opening += DetailContextMenu_Opening;
+
+            // Zoom Selection
+            _detailContextMenu.Items.Add(
+                new ToolStripMenuItem("Zoom Selection", null,
+                    (s, e) => ZoomSelection()));
+
+            _detailContextMenu.Items.Add(new ToolStripSeparator());
+
+            // Normalize Selection
+            _detailContextMenu.Items.Add(
+                new ToolStripMenuItem("Normalize Selection", null,
+                    (s, e) => NormalizeSelection()));
+
+            // Compress Selection – ruft erstmal deinen Button-Handler auf
+            _detailContextMenu.Items.Add(
+                new ToolStripMenuItem("Compress Selection", null,
+                    (s, e) => _btnCompress_Click(_detailView, EventArgs.Empty)));
+
+            _detailContextMenu.Items.Add(new ToolStripSeparator());
+
+            // Fade In / Fade Out – gleich wie Buttons
+            _detailContextMenu.Items.Add(
+                new ToolStripMenuItem("Fade In", null,
+                    (s, e) => _btnFadeIn_Click(_detailView, EventArgs.Empty)));
+
+            _detailContextMenu.Items.Add(
+                new ToolStripMenuItem("Fade Out", null,
+                    (s, e) => _btnFadeOut_Click(_detailView, EventArgs.Empty)));
+
+            _detailContextMenu.Items.Add(new ToolStripSeparator());
+
+            // Export Selection
+            _detailContextMenu.Items.Add(
+                new ToolStripMenuItem("Export Selection...", null,
+                    (s, e) => ExportSelection()));
+
+            // Dem DetailView zuweisen
+            _detailView.ContextMenuStrip = _detailContextMenu;
+        }
+
+        private void DetailContextMenu_Opening(object sender, CancelEventArgs e)
+        {
+            // Kein Clip geladen -> kein Menü
+            if (_currentSamples == null || _currentSamples.Length == 0)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            // Im DetailView muss eine gültige Selektion existieren
+            if (_detailView == null ||
+                !_detailView.TryGetSelection(out int start, out int end) ||
+                end <= start)
+            {
+                e.Cancel = true;
+                return;
+            }
+        }
+
+        private void ZoomSelection()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            // Bearbeitungs-Selektion kommt NUR aus dem DetailView
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Zoom Selection",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int selectionLength = end - start;
+            if (selectionLength <= 0)
+                return;
+
+            int total = _currentSamples.Length;
+
+            // 1 Sekunde Luft links/rechts (Fallback 44.1k)
+            int marginSamples = _currentSampleRate > 0 ? _currentSampleRate : 44100;
+
+            // DetailView darf vor und nach dem Clip Luft haben (Negative + Air),
+            // darum NICHT auf [0,total] clampen.
+            int viewStart = start - marginSamples;
+            int viewCount = selectionLength + marginSamples * 2;
+            if (viewCount <= 0)
+                viewCount = selectionLength;
+
+            _detailView.ExtraScrollSamples = marginSamples;
+            _detailView.VisibleStartSample = viewStart;
+            _detailView.VisibleSampleCount = viewCount;
+
+            // Overview-Fenster zur Info nachziehen (aber ohne Event)
+            int ovStart = Math.Max(0, viewStart);
+            int ovEnd = ovStart + viewCount;
+            if (ovEnd > total) ovEnd = total;
+
+            if (ovEnd > ovStart)
+            {
+                _overviewView.SetSelection(ovStart, ovEnd, raiseEvent: false);
+            }
         }
 
 
