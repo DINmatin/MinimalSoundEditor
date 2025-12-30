@@ -1254,141 +1254,89 @@ namespace MinimalSoundEditor
             return copy;
         }
 
-        void Undo()
+        private void Undo()
         {
             if (_undoStack.Count == 0)
                 return;
 
-            // Aktuelle Bearbeitungs-Selektion im DETAIL-Fenster merken
-            bool hadSelection = false;
-            int selStart = 0;
-            int selEnd = 0;
+            if (_currentSamples == null)
+                return;
 
-            if (_detailView != null &&
-                _detailView.TryGetSelection(out selStart, out selEnd) &&
-                selEnd > selStart)
-            {
-                hadSelection = true;
-            }
+            // Zoom-/Fenster-Einstellungen merken
+            int prevDetailStart = _detailView.VisibleStartSample;
+            int prevDetailCount = _detailView.VisibleSampleCount;
+            int prevOverviewStart = _overviewView.VisibleStartSample;
+            int prevOverviewCount = _overviewView.VisibleSampleCount;
 
-            // Samples aus dem Undo-Stack wiederherstellen
+            // Bearbeitungs-Selektion im DetailView merken
+            bool hadSelection = _detailView.TryGetSelection(out int selStart, out int selEnd) && selEnd > selStart;
+
+            // Playhead-Position merken
+            int prevPlayhead = _playbackSamplePosition;
+
+            // Samples aus Undo-Stack wiederherstellen
             _currentSamples = _undoStack.Pop();
 
             _overviewView.Samples = _currentSamples;
             _detailView.Samples = _currentSamples;
 
-            // Samples-Setter setzt selber VisibleStart/Count und löscht Selektion,
-            // deshalb jetzt alles wieder neu aufbauen:
+            int total = _currentSamples.Length;
 
-            _playbackSamplePosition = 0;
-            _overviewView.PlaybackSample = 0;
-            _detailView.PlaybackSample = 0;
+            // Zoom im DetailView wiederherstellen (so gut es geht)
+            if (prevDetailCount <= 0 || prevDetailCount > total)
+                prevDetailCount = total;
+
+            _detailView.VisibleSampleCount = prevDetailCount;
+            _detailView.VisibleStartSample = prevDetailStart;
+
+            // Fenster im Overview wiederherstellen (auf Dateibereich geklemmt)
+            if (prevOverviewCount <= 0 || prevOverviewCount > total)
+                prevOverviewCount = total;
+
+            if (prevOverviewStart < 0)
+                prevOverviewStart = 0;
+            if (prevOverviewStart > total - 1)
+                prevOverviewStart = Math.Max(0, total - prevOverviewCount);
+
+            _overviewView.VisibleSampleCount = prevOverviewCount;
+            _overviewView.VisibleStartSample = prevOverviewStart;
+
+            // Playhead-Position innerhalb der neuen Länge einklemmen
+            int newPlay = prevPlayhead;
+            if (newPlay < 0) newPlay = 0;
+            if (newPlay >= total && total > 0) newPlay = total - 1;
+
+            _playbackSamplePosition = newPlay;
+            _overviewView.PlaybackSample = newPlay;
+            _detailView.PlaybackSample = newPlay;
 
             UpdateInfo(_currentSampleRate, _currentSamples.Length);
             UpdatePlaybackTimerInterval();
 
             _chkLoop.Checked = false;
 
-            // Selektion im DetailView wiederherstellen (so gut es geht)
-            if (hadSelection && _currentSamples != null && _currentSamples.Length > 0 && _detailView != null)
+            // Bearbeitungs-Selektion im DetailView wiederherstellen
+            if (hadSelection && total > 0)
             {
-                int total = _currentSamples.Length;
-
-                // innerhalb der neuen Länge einklemmen
                 selStart = Math.Max(0, Math.Min(selStart, total - 1));
                 selEnd = Math.Max(selStart + 1, Math.Min(selEnd, total));
-
-                // setzt NUR die Bearbeitungs-Selektion unten,
-                // Overview-Highlight kommt (falls implementiert) über SelectionChanged-Event
                 _detailView.SetSelection(selStart, selEnd, raiseEvent: true);
+            }
+            else
+            {
+                _detailView.ClearSelection();
+            }
+
+            // Fenster-Auswahl im Overview entsprechend aktualisieren (nur Anzeige, kein Event)
+            int vs = _detailView.VisibleStartSample;
+            int ve = vs + _detailView.VisibleSampleCount;
+            if (ve > total) ve = total;
+            if (ve > vs)
+            {
+                _overviewView.SetSelection(vs, ve, raiseEvent: false);
             }
         }
 
-
-
-        // PLAY
-        //private void BtnPlay_Click(object sender, EventArgs e)
-        //{
-        //    if (_currentSamples == null || _currentSamples.Length == 0)
-        //    {
-        //        MessageBox.Show(this, "Keine Audiodatei geladen.", "Hinweis",
-        //            MessageBoxButtons.OK, MessageBoxIcon.Information);
-        //        return;
-        //    }
-
-        //    if (_waveOut != null)
-        //    {
-        //        _waveOut.PlaybackStopped -= WaveOut_PlaybackStopped;
-        //        try { _waveOut.Stop(); } catch { }
-        //        _waveOut.Dispose();
-        //        _waveOut = null;
-        //    }
-
-        //    //_waveOut = new WaveOutEvent
-        //    //{
-        //    //    DesiredLatency = 50,   // ca. 50 ms Gesamtlatenz
-        //    //    NumberOfBuffers = 2    // 2 kleine Buffer
-        //    //};
-
-        //    // etwas konservativere Standard-Einstellungen verwenden
-        //    _waveOut = new WaveOutEvent();
-
-        //    // Prüfen, ob wir loop-fähig sind
-        //    bool hasLoopSelection = false;
-        //    int loopStart = 0;
-        //    int loopEnd = 0;
-
-        //    if (_loopEnabled)
-        //    {
-        //        // 1) bevorzugt: Selektion im Detail-Track
-        //        if (_detailView.TryGetSelection(out var ds, out var de) && de > ds)
-        //        {
-        //            hasLoopSelection = true;
-        //            loopStart = ds;
-        //            loopEnd = de;
-        //        }
-        //        // 2) falls dort nichts: Selektion im Overview-Track
-        //        else if (_overviewView.TryGetSelection(out var os, out var oe) && oe > os)
-        //        {
-        //            hasLoopSelection = true;
-        //            loopStart = os;
-        //            loopEnd = oe;
-        //        }
-        //    }
-
-        //    if (hasLoopSelection)
-        //    {
-        //        // Loop von aktueller Selektion
-        //        _currentProvider = new LoopingArraySampleProvider(
-        //            _currentSamples,
-        //            _currentSampleRate,
-        //            1,
-        //            loopStart,
-        //            loopEnd);
-
-        //        // Playhead am Loop-Anfang
-        //        _playbackSamplePosition = loopStart;
-        //        _overviewView.PlaybackSample = _playbackSamplePosition;
-        //        _detailView.PlaybackSample = _playbackSamplePosition;
-        //    }
-        //    else
-        //    {
-        //        // normales Playback ab aktuellem Playhead
-        //        _currentProvider = new SimpleArraySampleProvider(
-        //            _currentSamples,
-        //            _currentSampleRate,
-        //            1,
-        //            _playbackSamplePosition);
-        //    }
-
-
-        //    _waveOut.Init(_currentProvider);
-        //    _waveOut.PlaybackStopped += WaveOut_PlaybackStopped;
-        //    _waveOut.Play();
-
-        //    _playbackTimer?.Start();
-
-        //}
 
         private void WaveOut_PlaybackStopped(object sender, StoppedEventArgs e)
         {
