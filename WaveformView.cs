@@ -39,12 +39,17 @@ namespace MinimalSoundEditor
         private const int EdgeHitPixels = 6; // Klick-Toleranz an Selektionskanten
         private bool _isHoveringEdge = false;
 
+        // für „Auswahl verschieben“
+        private int _moveSelectionOffsetSamples;
+        private int _moveSelectionLengthSamples;
+
         private enum DragMode
         {
             None,
             NewSelection,
             ResizeLeft,
-            ResizeRight
+            ResizeRight,
+            MoveSelection
         }
 
         // Peak-Cache + Bitmap-Cache
@@ -106,6 +111,12 @@ namespace MinimalSoundEditor
         /// eine gültige Selektion vorliegt. Übergibt Start/Ende (global).
         /// </summary>
         public event Action<int, int> SelectionChanged;
+
+        /// <summary>
+        /// Wird ausgelöst, wenn der sichtbare Ausschnitt (Start/Ende) 
+        /// durch User-Interaktion geändert wurde (Scrollen/Zoomen).
+        /// </summary>
+        public event Action<int, int> VisibleRangeChanged;
 
         public WaveformView()
         {
@@ -792,6 +803,10 @@ namespace MinimalSoundEditor
 
             int totalSamples = _samples.Length;
 
+            // nur linke + mittlere Maustaste unterstützen wir hier
+            if (e.Button != MouseButtons.Left && e.Button != MouseButtons.Middle)
+                return;
+
             // 1) Klick in die Zeit-Leiste oben -> nur Playhead setzen, Selektion bleibt
             if (e.Button == MouseButtons.Left && e.Y <= RULER_HEIGHT)
             {
@@ -807,6 +822,23 @@ namespace MinimalSoundEditor
 
             // Klick-Sample im aktuellen Sichtfenster
             int clickSample = XToSampleIndex(e.X);
+
+            // Mittlere Maustaste + Klick IN der Auswahl -> Auswahl verschieben
+            if (e.Button == MouseButtons.Middle && HasSelection)
+            {
+                var sel = GetNormalizedSelection(totalSamples);
+                int selStart = sel.start;
+                int selEnd = sel.end;
+
+                if (clickSample >= selStart && clickSample <= selEnd)
+                {
+                    _dragMode = DragMode.MoveSelection;
+                    _moveSelectionOffsetSamples = clickSample - selStart;
+                    _moveSelectionLengthSamples = selEnd - selStart;
+                    Cursor = Cursors.SizeWE;
+                    return;
+                }
+            }
 
             // Prüfen, ob wir eine Selektion haben und ob wir an einer Kante klicken
             if (HasSelection)
@@ -1010,6 +1042,26 @@ namespace MinimalSoundEditor
                         _selectionEndSample = sel.end;
                         break;
                     }
+                case DragMode.MoveSelection:
+                    {
+                        int length = _moveSelectionLengthSamples;
+                        if (length <= 0)
+                            break;
+
+                        int total = totalSamples;
+
+                        int newStart = idx - _moveSelectionOffsetSamples;
+
+                        // innerhalb der Datei einklemmen
+                        if (newStart < 0) newStart = 0;
+                        if (newStart + length > total) newStart = total - length;
+                        if (newStart < 0) newStart = 0;
+
+                        _selectionStartSample = newStart;
+                        _selectionEndSample = newStart + length;
+                        break;
+                    }
+
             }
 
             Invalidate();
