@@ -72,9 +72,16 @@ namespace MinimalSoundEditor
             _overviewPanel = new Panel();
             _overviewView = new WaveformView();
             _detailView = new WaveformView();
+            _statusStrip = new StatusStrip();
+            _lblSel = new ToolStripStatusLabel();
+            _lblPos = new ToolStripStatusLabel();
+            _lblRate = new ToolStripStatusLabel();
+            _lblChannels = new ToolStripStatusLabel();
+            _lblTotal = new ToolStripStatusLabel();
             _menuStrip.SuspendLayout();
             _topPanel.SuspendLayout();
             _overviewPanel.SuspendLayout();
+            _statusStrip.SuspendLayout();
             SuspendLayout();
             // 
             // _menuStrip
@@ -508,11 +515,51 @@ namespace MinimalSoundEditor
             _detailView.VisibleStartSample = 0;
             _detailView.Zoom = 0.5F;
             // 
+            // _statusStrip
+            // 
+            _statusStrip.Items.AddRange(new ToolStripItem[] { _lblRate, _lblChannels, _lblPos, _lblTotal, _lblSel });
+            _statusStrip.Location = new Point(0, 539);
+            _statusStrip.Name = "_statusStrip";
+            _statusStrip.Size = new Size(1184, 22);
+            _statusStrip.TabIndex = 5;
+            _statusStrip.Text = "statusStrip1";
+            // 
+            // _lblSel
+            // 
+            _lblSel.Name = "_lblSel";
+            _lblSel.Size = new Size(55, 17);
+            _lblSel.Text = "Sel: none";
+            // 
+            // _lblPos
+            // 
+            _lblPos.Name = "_lblPos";
+            _lblPos.Size = new Size(80, 17);
+            _lblPos.Text = "Pos: 00:00.000";
+            // 
+            // _lblRate
+            // 
+            _lblRate.Name = "_lblRate";
+            _lblRate.Size = new Size(31, 17);
+            _lblRate.Text = "SR: -";
+            // 
+            // _lblChannels
+            // 
+            _lblChannels.Name = "_lblChannels";
+            _lblChannels.Size = new Size(67, 17);
+            _lblChannels.Text = "Channels: -";
+            // 
+            // _lblTotal
+            // 
+            _lblTotal.Name = "_lblTotal";
+            _lblTotal.Size = new Size(37, 17);
+            _lblTotal.Text = "Len: -";
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1184, 561);
+            Controls.Add(_statusStrip);
             Controls.Add(_detailView);
             Controls.Add(_overviewPanel);
             Controls.Add(_topPanel);
@@ -528,6 +575,8 @@ namespace MinimalSoundEditor
             _topPanel.ResumeLayout(false);
             _topPanel.PerformLayout();
             _overviewPanel.ResumeLayout(false);
+            _statusStrip.ResumeLayout(false);
+            _statusStrip.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -577,5 +626,11 @@ namespace MinimalSoundEditor
         private Button _btnTrim;
         private Button _btnCompress;
         private Button _btnNormalize;
+        private StatusStrip _statusStrip;
+        private ToolStripStatusLabel _lblPos;
+        private ToolStripStatusLabel _lblSel;
+        private ToolStripStatusLabel _lblRate;
+        private ToolStripStatusLabel _lblChannels;
+        private ToolStripStatusLabel _lblTotal;
     }
 }

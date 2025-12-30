@@ -1089,6 +1089,7 @@ namespace MinimalSoundEditor
 
             int sampleRate = reader.WaveFormat.SampleRate;
             int channels = reader.WaveFormat.Channels;
+            _currentChannels = reader.WaveFormat.Channels;
 
             _currentSampleRate = sampleRate;
             var monoSamples = new List<float>();

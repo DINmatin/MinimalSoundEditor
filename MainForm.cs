@@ -14,6 +14,7 @@ namespace MinimalSoundEditor
     public partial class MainForm : Form
     {
         private ContextMenuStrip _detailContextMenu;
+        private int _currentChannels = 1;   // default mono
 
         public MainForm()
         {
@@ -203,6 +204,63 @@ namespace MinimalSoundEditor
             _detailContextMenu.Items.Add(new ToolStripLabel());
             // Dem DetailView zuweisen
             _detailView.ContextMenuStrip = _detailContextMenu;
+        }
+        private void UpdateStatusBar()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+            {
+                _lblPos.Text = "Pos: -";
+                _lblSel.Text = "Sel: -";
+                _lblRate.Text = "SR: -";
+                _lblChannels.Text = "Channels: -";
+                _lblTotal.Text = "Len: -";
+                return;
+            }
+
+            // Position
+            _lblPos.Text = "Pos: " + FormatTimeFromSamples(_playbackSamplePosition);
+
+            // Selection
+            if (_detailView.TryGetSelection(out int selStart, out int selEnd) &&
+                selEnd > selStart)
+            {
+                int len = selEnd - selStart;
+                _lblSel.Text = "Sel: " + FormatTimeFromSamples(len);
+            }
+            else
+            {
+                _lblSel.Text = "Sel: none";
+            }
+
+            // Sample Rate
+            _lblRate.Text = $"SR: {_currentSampleRate} Hz";
+
+            // Channels (1 = mono, 2 = stereo)
+            // Channels
+            if (_currentChannels <= 0)
+                _lblChannels.Text = "Channels: -";
+            else if (_currentChannels == 1)
+                _lblChannels.Text = "Mono";
+            else if (_currentChannels == 2)
+                _lblChannels.Text = "Stereo";
+            else
+                _lblChannels.Text = $"{_currentChannels} ch";
+
+
+            // Total Length
+            int total = _currentSamples.Length;
+            _lblTotal.Text = "Len: " + FormatTimeFromSamples(total);
+        }
+
+        private string FormatTimeFromSamples(int samples)
+        {
+            if (_currentSampleRate <= 0 || samples < 0)
+                return "00:00.000";
+
+            double seconds = samples / (double)_currentSampleRate;
+            TimeSpan t = TimeSpan.FromSeconds(seconds);
+
+            return $"{t.Minutes:00}:{t.Seconds:00}.{t.Milliseconds:000}";
         }
 
         private void DetailContextMenu_Opening(object sender, CancelEventArgs e)
