@@ -751,12 +751,11 @@ namespace MinimalSoundEditor
             _detailView.VisibleStartSample = viewStart;
             _detailView.VisibleSampleCount = viewCount;
 
-            // Auswahl im DetailView selbst beibehalten
-            _detailView.SetSelection(startSample, endSample, raiseEvent: false);
+            // WICHTIG:
+            // Keine Selektion im DetailView ändern!
+            // Der Overview dient NUR als "Fenster" (Zoom/Ausschnitt),
+            // die Bearbeitungs-Auswahl unten bleibt unangetastet.
         }
-
-
-
 
         private void OpenThemeSettings()
         {
