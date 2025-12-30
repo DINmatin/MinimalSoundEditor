@@ -42,16 +42,6 @@ namespace MinimalSoundEditor
             miFileExit = new ToolStripMenuItem();
             ansichtToolStripMenuItem = new ToolStripMenuItem();
             miViewZoomAll = new ToolStripMenuItem();
-            themeToolStripMenuItem = new ToolStripMenuItem();
-            toolStripMenuItem3 = new ToolStripMenuItem();
-            darkToolStripMenuItem = new ToolStripMenuItem();
-            toolStripSeparator4 = new ToolStripSeparator();
-            einstellungenToolStripMenuItem = new ToolStripMenuItem();
-            toolStripSeparator5 = new ToolStripSeparator();
-            presetsToolStripMenuItem = new ToolStripMenuItem();
-            neonToolStripMenuItem = new ToolStripMenuItem();
-            consoleToolStripMenuItem = new ToolStripMenuItem();
-            sunsetToolStripMenuItem = new ToolStripMenuItem();
             _topPanel = new Panel();
             _btnNormalize = new Button();
             _btnFadeOut = new Button();
@@ -73,11 +63,11 @@ namespace MinimalSoundEditor
             _overviewView = new WaveformView();
             _detailView = new WaveformView();
             _statusStrip = new StatusStrip();
-            _lblSel = new ToolStripStatusLabel();
-            _lblPos = new ToolStripStatusLabel();
             _lblRate = new ToolStripStatusLabel();
             _lblChannels = new ToolStripStatusLabel();
+            _lblSel = new ToolStripStatusLabel();
             _lblTotal = new ToolStripStatusLabel();
+            _lblPos = new ToolStripStatusLabel();
             _menuStrip.SuspendLayout();
             _topPanel.SuspendLayout();
             _overviewPanel.SuspendLayout();
@@ -86,7 +76,7 @@ namespace MinimalSoundEditor
             // 
             // _menuStrip
             // 
-            _menuStrip.Items.AddRange(new ToolStripItem[] { toolStripMenuItem1, dateiToolStripMenuItem, ansichtToolStripMenuItem, themeToolStripMenuItem });
+            _menuStrip.Items.AddRange(new ToolStripItem[] { toolStripMenuItem1, dateiToolStripMenuItem, ansichtToolStripMenuItem });
             _menuStrip.Location = new Point(0, 0);
             _menuStrip.Name = "_menuStrip";
             _menuStrip.Size = new Size(1184, 24);
@@ -178,66 +168,6 @@ namespace MinimalSoundEditor
             miViewZoomAll.Size = new Size(236, 22);
             miViewZoomAll.Text = "Alles anzeigen";
             miViewZoomAll.Click += miViewZoomAll_Click;
-            // 
-            // themeToolStripMenuItem
-            // 
-            themeToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { toolStripMenuItem3, darkToolStripMenuItem, toolStripSeparator4, einstellungenToolStripMenuItem, toolStripSeparator5, presetsToolStripMenuItem });
-            themeToolStripMenuItem.Name = "themeToolStripMenuItem";
-            themeToolStripMenuItem.Size = new Size(56, 20);
-            themeToolStripMenuItem.Text = "Theme";
-            // 
-            // toolStripMenuItem3
-            // 
-            toolStripMenuItem3.Name = "toolStripMenuItem3";
-            toolStripMenuItem3.Size = new Size(145, 22);
-            toolStripMenuItem3.Text = "Light";
-            // 
-            // darkToolStripMenuItem
-            // 
-            darkToolStripMenuItem.Name = "darkToolStripMenuItem";
-            darkToolStripMenuItem.Size = new Size(145, 22);
-            darkToolStripMenuItem.Text = "Dark";
-            // 
-            // toolStripSeparator4
-            // 
-            toolStripSeparator4.Name = "toolStripSeparator4";
-            toolStripSeparator4.Size = new Size(142, 6);
-            // 
-            // einstellungenToolStripMenuItem
-            // 
-            einstellungenToolStripMenuItem.Name = "einstellungenToolStripMenuItem";
-            einstellungenToolStripMenuItem.Size = new Size(145, 22);
-            einstellungenToolStripMenuItem.Text = "Einstellungen";
-            // 
-            // toolStripSeparator5
-            // 
-            toolStripSeparator5.Name = "toolStripSeparator5";
-            toolStripSeparator5.Size = new Size(142, 6);
-            // 
-            // presetsToolStripMenuItem
-            // 
-            presetsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { neonToolStripMenuItem, consoleToolStripMenuItem, sunsetToolStripMenuItem });
-            presetsToolStripMenuItem.Name = "presetsToolStripMenuItem";
-            presetsToolStripMenuItem.Size = new Size(145, 22);
-            presetsToolStripMenuItem.Text = "Presets";
-            // 
-            // neonToolStripMenuItem
-            // 
-            neonToolStripMenuItem.Name = "neonToolStripMenuItem";
-            neonToolStripMenuItem.Size = new Size(151, 22);
-            neonToolStripMenuItem.Text = "Neon";
-            // 
-            // consoleToolStripMenuItem
-            // 
-            consoleToolStripMenuItem.Name = "consoleToolStripMenuItem";
-            consoleToolStripMenuItem.Size = new Size(151, 22);
-            consoleToolStripMenuItem.Text = "Console Green";
-            // 
-            // sunsetToolStripMenuItem
-            // 
-            sunsetToolStripMenuItem.Name = "sunsetToolStripMenuItem";
-            sunsetToolStripMenuItem.Size = new Size(151, 22);
-            sunsetToolStripMenuItem.Text = "Warm Sunset";
             // 
             // _topPanel
             // 
@@ -517,24 +447,12 @@ namespace MinimalSoundEditor
             // 
             // _statusStrip
             // 
-            _statusStrip.Items.AddRange(new ToolStripItem[] { _lblRate, _lblChannels, _lblPos, _lblTotal, _lblSel });
+            _statusStrip.Items.AddRange(new ToolStripItem[] { _lblRate, _lblChannels, _lblSel, _lblTotal, _lblPos });
             _statusStrip.Location = new Point(0, 539);
             _statusStrip.Name = "_statusStrip";
             _statusStrip.Size = new Size(1184, 22);
             _statusStrip.TabIndex = 5;
             _statusStrip.Text = "statusStrip1";
-            // 
-            // _lblSel
-            // 
-            _lblSel.Name = "_lblSel";
-            _lblSel.Size = new Size(55, 17);
-            _lblSel.Text = "Sel: none";
-            // 
-            // _lblPos
-            // 
-            _lblPos.Name = "_lblPos";
-            _lblPos.Size = new Size(80, 17);
-            _lblPos.Text = "Pos: 00:00.000";
             // 
             // _lblRate
             // 
@@ -548,11 +466,23 @@ namespace MinimalSoundEditor
             _lblChannels.Size = new Size(67, 17);
             _lblChannels.Text = "Channels: -";
             // 
+            // _lblSel
+            // 
+            _lblSel.Name = "_lblSel";
+            _lblSel.Size = new Size(55, 17);
+            _lblSel.Text = "Sel: none";
+            // 
             // _lblTotal
             // 
             _lblTotal.Name = "_lblTotal";
             _lblTotal.Size = new Size(37, 17);
             _lblTotal.Text = "Len: -";
+            // 
+            // _lblPos
+            // 
+            _lblPos.Name = "_lblPos";
+            _lblPos.Size = new Size(80, 17);
+            _lblPos.Text = "Pos: 00:00.000";
             // 
             // MainForm
             // 
@@ -596,16 +526,6 @@ namespace MinimalSoundEditor
         private ToolStripMenuItem miFileExit;
         private ToolStripMenuItem ansichtToolStripMenuItem;
         private ToolStripMenuItem miViewZoomAll;
-        private ToolStripMenuItem themeToolStripMenuItem;
-        private ToolStripMenuItem toolStripMenuItem3;
-        private ToolStripMenuItem darkToolStripMenuItem;
-        private ToolStripSeparator toolStripSeparator4;
-        private ToolStripMenuItem einstellungenToolStripMenuItem;
-        private ToolStripSeparator toolStripSeparator5;
-        private ToolStripMenuItem presetsToolStripMenuItem;
-        private ToolStripMenuItem neonToolStripMenuItem;
-        private ToolStripMenuItem consoleToolStripMenuItem;
-        private ToolStripMenuItem sunsetToolStripMenuItem;
         private Panel _topPanel;
         private Panel _overviewPanel;
         private WaveformView _overviewView;

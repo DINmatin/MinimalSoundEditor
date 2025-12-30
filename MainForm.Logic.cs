@@ -758,6 +758,8 @@ namespace MinimalSoundEditor
             // Keine Selektion im DetailView ändern!
             // Der Overview dient NUR als "Fenster" (Zoom/Ausschnitt),
             // die Bearbeitungs-Auswahl unten bleibt unangetastet.
+
+            UpdateStatusBar();
         }
 
         private void OpenThemeSettings()
@@ -882,6 +884,8 @@ namespace MinimalSoundEditor
             {
                 _overviewView.SetHighlightRange(null, null);
             }
+
+            UpdateStatusBar();
         }
 
 
@@ -1407,6 +1411,8 @@ namespace MinimalSoundEditor
             _playbackSamplePosition = pos;
             _overviewView.PlaybackSample = pos;
             _detailView.PlaybackSample = pos;
+
+            UpdateStatusBar();
         }
 
         // Klick in Overview/Detail -> Playhead setzen
@@ -1487,6 +1493,8 @@ namespace MinimalSoundEditor
 
             _isDirty = true;
             UpdateWindowTitle();
+
+            UpdateStatusBar();
         }
         private bool TryGetNormalizeTarget(out float targetLinear)
         {
@@ -1958,6 +1966,8 @@ namespace MinimalSoundEditor
             _playbackSamplePosition = sampleIndex;
             _overviewView.PlaybackSample = sampleIndex;
             _detailView.PlaybackSample = sampleIndex;
+
+            UpdateStatusBar();
 
             if (restartIfPlaying && _waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
             {
