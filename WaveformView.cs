@@ -27,6 +27,10 @@ namespace MinimalSoundEditor
         private int? _selectionStartSample;
         private int? _selectionEndSample;
 
+        // zusätzlicher Anzeige-Bereich (z.B. Bearbeitungs-Selektion aus DetailView)
+        private int? _highlightStartSample;
+        private int? _highlightEndSample;
+
         private int _playbackSample; // aktueller Playhead (Sampleindex)
 
         // Sichtbarer Ausschnitt (horizontal)
@@ -183,7 +187,7 @@ namespace MinimalSoundEditor
         {
             if (theme == null) return;
 
-            // eigenes Theme-Objekt pro View (kein Shared-Reference mehr)
+            // eigenes Theme-Objekt pro View (kein gemeinsames Reference)
             _theme = new WaveformViewTheme
             {
                 Background = theme.Background,
@@ -202,6 +206,9 @@ namespace MinimalSoundEditor
             Invalidate();
         }
 
+        /// <summary>
+        /// Überschreibt nur die Farben der Selektion.
+        /// </summary>
         public void SetSelectionColors(Color fill, Color edge)
         {
             if (_theme == null)
@@ -209,6 +216,26 @@ namespace MinimalSoundEditor
 
             _theme.SelectionFillColor = fill;
             _theme.SelectionEdgeColor = edge;
+            Invalidate();
+        }
+
+        /// <summary>
+        /// Setzt einen zweiten, nur visuell angezeigten Bereich (z.B. Bearbeitungs-Selection).
+        /// Übergabe null/null löscht das Highlight.
+        /// </summary>
+        public void SetHighlightRange(int? startSample, int? endSample)
+        {
+            if (startSample.HasValue && endSample.HasValue && endSample > startSample)
+            {
+                _highlightStartSample = startSample.Value;
+                _highlightEndSample = endSample.Value;
+            }
+            else
+            {
+                _highlightStartSample = null;
+                _highlightEndSample = null;
+            }
+
             Invalidate();
         }
 
@@ -502,6 +529,56 @@ namespace MinimalSoundEditor
             {
                 DrawDbScale(g, width, height);
             }
+
+            // Bearbeitungs-Auswahl (Highlight) – z.B. Detail-Selection im Overview
+            if (_highlightStartSample.HasValue &&
+                _highlightEndSample.HasValue &&
+                _highlightEndSample.Value > _highlightStartSample.Value)
+            {
+                int hiStart = _highlightStartSample.Value;
+                int hiEnd = _highlightEndSample.Value;
+
+                int windowStart = viewStart;
+                int windowEnd = viewStart + viewCount;
+
+                int drawStart = Math.Max(hiStart, windowStart);
+                int drawEnd = Math.Min(hiEnd, windowEnd);
+
+                if (drawEnd > drawStart)
+                {
+                    long num1 = (long)(drawStart - viewStart) * width;
+                    long num2 = (long)(drawEnd - viewStart) * width;
+
+                    int x1 = (int)(num1 / viewCount);
+                    int x2 = (int)(num2 / viewCount);
+
+                    if (x1 < 0) x1 = 0;
+                    if (x1 > width) x1 = width;
+                    if (x2 < 0) x2 = 0;
+                    if (x2 > width) x2 = width;
+
+                    if (x2 < x1)
+                    {
+                        int tmp = x1;
+                        x1 = x2;
+                        x2 = tmp;
+                    }
+
+                    int selTop = RULER_HEIGHT;
+                    int selHeight = height - RULER_HEIGHT;
+                    if (selHeight < 0) selHeight = 0;
+
+                    // z.B. halbtransparente Version der Playhead-Farbe für das Highlight
+                    using (var brush = new SolidBrush(Color.FromArgb(80,
+                        _theme.PlayheadColor.R,
+                        _theme.PlayheadColor.G,
+                        _theme.PlayheadColor.B)))
+                    {
+                        g.FillRectangle(brush, x1, selTop, x2 - x1, selHeight);
+                    }
+                }
+            }
+
             // Auswahl zeichnen (Overlay)
             if (HasSelection)
             {

@@ -868,10 +868,20 @@ namespace MinimalSoundEditor
 
         private void DetailView_SelectionChanged(int startSample, int endSample)
         {
-            // Hier musst du eigentlich nichts mehr tun,
-            // außer evtl. später UI-Info updaten.
-            // Loop-Bereich wird direkt aus der aktuellen Selektion gelesen.
+            // Bearbeitungs-Selektion im DetailView => nur als Highlight im Overview anzeigen
+            if (_overviewView == null)
+                return;
+
+            if (endSample > startSample)
+            {
+                _overviewView.SetHighlightRange(startSample, endSample);
+            }
+            else
+            {
+                _overviewView.SetHighlightRange(null, null);
+            }
         }
+
 
 
         // Tastatur-Shortcuts
@@ -1090,6 +1100,7 @@ namespace MinimalSoundEditor
             _overviewView.Samples = _currentSamples;
             _overviewView.VisibleStartSample = 0;
             _overviewView.VisibleSampleCount = 0;
+            _overviewView.SetHighlightRange(null, null);
 
             _detailView.Samples = _currentSamples;
             _detailView.VisibleStartSample = 0;
@@ -1966,7 +1977,7 @@ namespace MinimalSoundEditor
 
         bool TryGetCurrentSelection(out int startSample, out int endSample)
         {
-            // Nur noch Detail-View gilt als "Bearbeitungs-Selektion"
+            // Nur die Selection im DETAIL-View gilt als Bearbeitungsbereich
             if (_detailView != null &&
                 _detailView.TryGetSelection(out startSample, out endSample) &&
                 endSample > startSample)
@@ -1978,6 +1989,7 @@ namespace MinimalSoundEditor
             endSample = 0;
             return false;
         }
+
 
 
         private void JumpToSample(int sampleIndex, bool restartIfPlaying)
