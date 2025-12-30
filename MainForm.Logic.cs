@@ -39,7 +39,7 @@ namespace MinimalSoundEditor
         private ToolStripMenuItem _miThemeLight;
         private ToolStripMenuItem _miThemeDark;
 
-        private const int SelectionFillAlpha = 110; // oder 80, wie du magst
+        public const int SelectionFillAlpha = 110; // oder 80, wie du magst
 
         public enum ThemeMode
         {
@@ -507,6 +507,61 @@ namespace MinimalSoundEditor
 
             _currentThemeMode = ThemeMode.Dark; // Start im Dark-Mode
         }
+        private static ThemeDefinition CloneTheme(ThemeDefinition src)
+        {
+            if (src == null)
+                return null;
+
+            return new ThemeDefinition
+            {
+                Mode = src.Mode,
+                FormBack = src.FormBack,
+                ButtonBack = src.ButtonBack,
+                ButtonFore = src.ButtonFore,
+                ButtonBorder = src.ButtonBorder,
+                Waveform = src.Waveform == null ? null : new WaveformViewTheme
+                {
+                    Background = src.Waveform.Background,
+                    WaveColor = src.Waveform.WaveColor,
+                    ZeroLineColor = src.Waveform.ZeroLineColor,
+                    SelectionFillColor = src.Waveform.SelectionFillColor,
+                    SelectionEdgeColor = src.Waveform.SelectionEdgeColor,
+                    PlayheadColor = src.Waveform.PlayheadColor,
+                    TextColor = src.Waveform.TextColor
+                }
+            };
+        }
+
+        private static void CopyTheme(ThemeDefinition src, ThemeDefinition dst)
+        {
+            if (src == null || dst == null)
+                return;
+
+            dst.Mode = src.Mode;
+            dst.FormBack = src.FormBack;
+            dst.ButtonBack = src.ButtonBack;
+            dst.ButtonFore = src.ButtonFore;
+            dst.ButtonBorder = src.ButtonBorder;
+
+            if (src.Waveform == null)
+            {
+                dst.Waveform = null;
+            }
+            else
+            {
+                if (dst.Waveform == null)
+                    dst.Waveform = new WaveformViewTheme();
+
+                dst.Waveform.Background = src.Waveform.Background;
+                dst.Waveform.WaveColor = src.Waveform.WaveColor;
+                dst.Waveform.ZeroLineColor = src.Waveform.ZeroLineColor;
+                dst.Waveform.SelectionFillColor = src.Waveform.SelectionFillColor;
+                dst.Waveform.SelectionEdgeColor = src.Waveform.SelectionEdgeColor;
+                dst.Waveform.PlayheadColor = src.Waveform.PlayheadColor;
+                dst.Waveform.TextColor = src.Waveform.TextColor;
+            }
+        }
+
         private void UpdateThemeMenuChecks()
         {
             if (_miThemeLight == null || _miThemeDark == null)
@@ -764,32 +819,38 @@ namespace MinimalSoundEditor
 
         private void OpenThemeSettings()
         {
-            // themes.json neu lesen (falls im Editor geändert)
+            // themes.json -> Light/Dark in _lightTheme/_darkTheme laden
             LoadThemeDefaultsFromFile();
 
             using (var dlg = new ThemeSettingsForm(_lightTheme, _darkTheme, _currentThemeMode))
             {
+                // Live-Preview: jede Änderung im Dialog wird sofort angewendet
+                dlg.ThemeChanged += () => ApplyTheme();
+
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
                     _currentThemeMode = dlg.SelectedMode;
 
                     ApplyTheme();
-
-                    // Mode merken (settings.json)
                     SaveThemeSettings();
 
-                    // NEU: aktuelle Farben als neue Defaults in themes.json schreiben
-                    SaveThemeDefaults(force: true);
+                    // WICHTIG:
+                    // themes.json wird jetzt im Dialog (SaveJsonModel) geschrieben.
+                    // Kein SaveThemeDefaults(force: true) mehr hier!
                 }
                 else
                 {
-                    // falls du im Dialog rumgespielt hast, aber abbrichst:
+                    // Cancel: wir bleiben bei dem Theme-Zustand, den wir zuletzt gesehen haben
                     ApplyTheme();
                 }
 
                 UpdateThemeMenuChecks();
             }
         }
+
+
+
+
         public static void SaveThemeDefaults(bool force = false)
         {
             string path = GetThemeDefaultsFilePath();
