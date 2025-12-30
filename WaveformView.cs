@@ -794,6 +794,98 @@ namespace MinimalSoundEditor
             Cursor = Cursors.Default;
             _isHoveringEdge = false;
         }
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            base.OnMouseWheel(e);
+
+            if (_samples == null || _samples.Length == 0)
+                return;
+
+            int totalSamples = _samples.Length;
+            int width = ClientSize.Width;
+            if (width <= 0 || totalSamples <= 0)
+                return;
+
+            int viewStart = Math.Max(0, Math.Min(_visibleStartSample, totalSamples));
+            int viewCount = _visibleSampleCount > 0
+                ? Math.Min(_visibleSampleCount, totalSamples - viewStart)
+                : (totalSamples - viewStart);
+
+            if (viewCount <= 0)
+                return;
+
+            bool ctrl = (ModifierKeys & Keys.Control) == Keys.Control;
+
+            // ===== CTRL + Mausrad: ZOOM =====
+            if (ctrl)
+            {
+                int mouseSample = XToSampleIndex(e.X);
+
+                double factor = e.Delta > 0 ? 0.8 : 1.25; // rein / raus
+                int newViewCount = (int)Math.Round(viewCount * factor);
+
+                const int MinSamples = 128;
+                if (newViewCount < MinSamples) newViewCount = MinSamples;
+                if (newViewCount > totalSamples) newViewCount = totalSamples;
+
+                if (newViewCount == viewCount)
+                    return;
+
+                double rel = (width > 1) ? (double)e.X / (width - 1) : 0.5;
+                int newStart = mouseSample - (int)Math.Round(newViewCount * rel);
+
+                if (newStart < 0) newStart = 0;
+                int maxStart = Math.Max(0, totalSamples - newViewCount);
+                if (newStart > maxStart) newStart = maxStart;
+
+                _visibleStartSample = newStart;
+                _visibleSampleCount = newViewCount;
+
+                MarkPeaksDirty();
+                MarkBitmapDirty();
+                Invalidate();
+
+                VisibleRangeChanged?.Invoke(_visibleStartSample,
+                                            _visibleStartSample + _visibleSampleCount);
+                return;
+            }
+
+            // ===== Nur Scrollen ohne Ctrl =====
+            if (!AllowHorizontalScroll)
+                return;
+
+            // ~10 % des aktuellen Fensters pro Wheel-Tick
+            int scrollDeltaSamples = Math.Max(1, viewCount / 10);
+
+            int newScrollStart = viewStart;
+
+            if (e.Delta > 0)
+            {
+                // Rad nach oben -> nach links
+                newScrollStart = Math.Max(0, viewStart - scrollDeltaSamples);
+            }
+            else if (e.Delta < 0)
+            {
+                // Rad nach unten -> nach rechts
+                int maxStart = Math.Max(0, totalSamples - viewCount);
+                newScrollStart = Math.Min(maxStart, viewStart + scrollDeltaSamples);
+            }
+
+            if (newScrollStart != viewStart)
+            {
+                _visibleStartSample = newScrollStart;
+
+                if (_visibleSampleCount <= 0)
+                    _visibleSampleCount = viewCount;
+
+                MarkPeaksDirty();
+                MarkBitmapDirty();
+                Invalidate();
+
+                VisibleRangeChanged?.Invoke(_visibleStartSample,
+                                            _visibleStartSample + _visibleSampleCount);
+            }
+        }
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
@@ -1100,65 +1192,65 @@ namespace MinimalSoundEditor
             Cursor = Cursors.Default;
             _isHoveringEdge = false;
         }
-        protected override void OnMouseWheel(MouseEventArgs e)
-        {
-            base.OnMouseWheel(e);
+        //protected override void OnMouseWheel(MouseEventArgs e)
+        //{
+        //    base.OnMouseWheel(e);
 
-            if (!AllowHorizontalScroll)
-                return;
+        //    if (!AllowHorizontalScroll)
+        //        return;
 
-            if (_samples == null || _samples.Length == 0)
-                return;
+        //    if (_samples == null || _samples.Length == 0)
+        //        return;
 
-            int totalSamples = _samples.Length;
-            int width = ClientSize.Width;
-            if (width <= 0 || totalSamples <= 0)
-                return;
+        //    int totalSamples = _samples.Length;
+        //    int width = ClientSize.Width;
+        //    if (width <= 0 || totalSamples <= 0)
+        //        return;
 
-            int viewStart = _visibleStartSample;
-            int viewCount = _visibleSampleCount > 0
-                ? _visibleSampleCount
-                : Math.Max(totalSamples, 1);
+        //    int viewStart = _visibleStartSample;
+        //    int viewCount = _visibleSampleCount > 0
+        //        ? _visibleSampleCount
+        //        : Math.Max(totalSamples, 1);
 
 
 
-            if (viewCount <= 0)
-                return;
+        //    if (viewCount <= 0)
+        //        return;
 
-            // ~10 % des aktuellen Fensters pro Wheel-Tick
-            int scrollDeltaSamples = Math.Max(1, viewCount / 10);
+        //    // ~10 % des aktuellen Fensters pro Wheel-Tick
+        //    int scrollDeltaSamples = Math.Max(1, viewCount / 10);
 
-            int newStart = viewStart;
-            int minStart = -_extraScrollSamples;
-            int maxStart = totalSamples + _extraScrollSamples - viewCount;
-            if (maxStart < minStart) maxStart = minStart;
+        //    int newStart = viewStart;
+        //    int minStart = -_extraScrollSamples;
+        //    int maxStart = totalSamples + _extraScrollSamples - viewCount;
+        //    if (maxStart < minStart) maxStart = minStart;
 
-            if (e.Delta > 0)
-            {
-                // Rad nach oben -> nach links
-                newStart = viewStart - scrollDeltaSamples;
-                if (newStart < minStart) newStart = minStart;
-            }
-            else if (e.Delta < 0)
-            {
-                // Rad nach unten -> nach rechts
-                newStart = viewStart + scrollDeltaSamples;
-                if (newStart > maxStart) newStart = maxStart;
-            }
+        //    if (e.Delta > 0)
+        //    {
+        //        // Rad nach oben -> nach links
+        //        newStart = viewStart - scrollDeltaSamples;
+        //        if (newStart < minStart) newStart = minStart;
+        //    }
+        //    else if (e.Delta < 0)
+        //    {
+        //        // Rad nach unten -> nach rechts
+        //        newStart = viewStart + scrollDeltaSamples;
+        //        if (newStart > maxStart) newStart = maxStart;
+        //    }
 
-            if (newStart != viewStart)
-            {
-                _visibleStartSample = newStart;
+        //    if (newStart != viewStart)
+        //    {
+        //        _visibleStartSample = newStart;
 
-                if (_visibleSampleCount <= 0)
-                    _visibleSampleCount = viewCount;
+        //        if (_visibleSampleCount <= 0)
+        //            _visibleSampleCount = viewCount;
 
-                MarkPeaksDirty();
-                MarkBitmapDirty();
-                Invalidate();
-            }
+        //        MarkPeaksDirty();
+        //        MarkBitmapDirty();
+        //        Invalidate();
+        //    }
 
-        }
+        //}
 
         private void DrawEmptyTimeline(Graphics g, int width, int height)
         {

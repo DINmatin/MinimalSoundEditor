@@ -37,6 +37,7 @@ namespace MinimalSoundEditor
             // === DETAIL (unten) ===
             _detailView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
             _detailView.SelectionChanged += DetailView_SelectionChanged;
+            _detailView.VisibleRangeChanged += DetailView_VisibleRangeChanged;
 
             // Loop
             _chkLoop.CheckedChanged += (s, e) =>
@@ -395,6 +396,27 @@ namespace MinimalSoundEditor
 
             return base.ProcessCmdKey(ref msg, keyData);
         }
+        private void DetailView_VisibleRangeChanged(int startSample, int endSample)
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            int total = _currentSamples.Length;
+            if (total <= 0)
+                return;
+
+            // innerhalb der Datei einklemmen
+            startSample = Math.Max(0, Math.Min(startSample, total));
+            endSample = Math.Max(0, Math.Min(endSample, total));
+
+            if (endSample <= startSample)
+                return;
+
+            // Im Overview als Auswahl anzeigen – aber OHNE Event,
+            // damit OverviewView_SelectionChanged nicht zurückfeuert.
+            _overviewView.SetSelection(startSample, endSample, raiseEvent: false);
+        }
+
         private void SaveWithPrompt(object sender, EventArgs e)
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
