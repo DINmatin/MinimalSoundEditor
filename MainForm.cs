@@ -129,6 +129,26 @@ namespace MinimalSoundEditor
 
             _detailContextMenu.Items.Add(new ToolStripSeparator());
 
+            // Copy
+            _detailContextMenu.Items.Add(
+                new ToolStripMenuItem("Copy\tCtrl+C", null,
+                    (s, e) => CopySelection()));
+
+            // Paste-Submenü
+            var pasteMenu = new ToolStripMenuItem("Paste");
+
+            pasteMenu.DropDownItems.Add(
+                new ToolStripMenuItem("Insert\tCtrl+V", null,
+                    (s, e) => PasteInsert()));
+
+            pasteMenu.DropDownItems.Add(
+                new ToolStripMenuItem("Overwrite\tCtrl+Shift+V", null,
+                    (s, e) => PasteOverwrite()));
+
+            _detailContextMenu.Items.Add(pasteMenu);
+
+            _detailContextMenu.Items.Add(new ToolStripSeparator());
+
             // Normalize Selection
             _detailContextMenu.Items.Add(
                 new ToolStripMenuItem("Normalize", null,
@@ -187,22 +207,19 @@ namespace MinimalSoundEditor
 
         private void DetailContextMenu_Opening(object sender, CancelEventArgs e)
         {
-            // Kein Clip geladen -> kein Menü
+            // Nur wenn überhaupt ein Clip geladen ist
             if (_currentSamples == null || _currentSamples.Length == 0)
             {
                 e.Cancel = true;
                 return;
             }
 
-            // Im DetailView muss eine gültige Selektion existieren
-            if (_detailView == null ||
-                !_detailView.TryGetSelection(out int start, out int end) ||
-                end <= start)
-            {
-                e.Cancel = true;
-                return;
-            }
+            // Kein Cancel mehr bei fehlender Selektion:
+            // - Copy / Normalize / Cut / Silence etc. prüfen intern selbst,
+            //   ob eine gültige Auswahl existiert.
+            // - Paste funktioniert auch ohne Auswahl (Lokator-basiert).
         }
+
 
         private void ZoomSelection()
         {
