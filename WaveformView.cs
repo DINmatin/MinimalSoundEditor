@@ -1475,7 +1475,8 @@ namespace MinimalSoundEditor
                 g.DrawLine(linePen, 0, y, margin - 6, y);
 
                 // Label
-                string label = db == 0 ? "0 dB" : $"{db} dB";
+                //string label = db == 0 ? "0 dB" : $"{db} dB";
+                string label = db == 0 ? "0 dB" : $"{db}";
                 var size = g.MeasureString(label, font);
                 float textX = 2;
                 float textY = y - size.Height / 2f;
