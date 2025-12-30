@@ -394,8 +394,130 @@ namespace MinimalSoundEditor
                 return true;
             }
 
+            // LEFT / RIGHT arrows -> Playhead steuern (nur im Stop-Modus)
+            {
+                Keys keyCode = keyData & Keys.KeyCode;
+                bool ctrl = (keyData & Keys.Control) == Keys.Control;
+                bool shift = (keyData & Keys.Shift) == Keys.Shift;
+
+                if (keyCode == Keys.Left || keyCode == Keys.Right)
+                {
+                    bool moveRight = (keyCode == Keys.Right);
+
+                    // Sample-Rate (Fallback 44.1k)
+                    int sr = _currentSampleRate > 0 ? _currentSampleRate : 44100;
+
+                    int stepSamples;
+
+                    if (ctrl)
+                    {
+                        // CTRL + Pfeil: ~1 Sekunde
+                        stepSamples = sr;
+                    }
+                    else if (shift)
+                    {
+                        // SHIFT + Pfeil: 1 Sample (Feintuning)
+                        stepSamples = 1;
+                    }
+                    else
+                    {
+                        // Pfeil ohne Modifier: ca. 10 ms
+                        stepSamples = (int)Math.Max(1, Math.Round(sr * 0.01)); // 0.01 s
+                    }
+
+                    if (MoveLocatorBy(moveRight ? stepSamples : -stepSamples))
+                        return true;
+                }
+            }
+
             return base.ProcessCmdKey(ref msg, keyData);
         }
+        /// <summary>
+        /// Bewegt den Playhead um eine gegebene Anzahl Samples, wenn nicht abgespielt wird.
+        /// Scrollt den Detail-View mit, falls der Playhead den sichtbaren Bereich verlässt.
+        /// </summary>
+        private bool MoveLocatorBy(int deltaSamples)
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return false;
+
+            // während des Playbacks keine manuelle Lokatorsteuerung
+            if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
+                return false;
+
+            if (deltaSamples == 0)
+                return false;
+
+            int total = _currentSamples.Length;
+
+            // neue Position clampen
+            int newPos = _playbackSamplePosition + deltaSamples;
+            if (newPos < 0) newPos = 0;
+            if (newPos >= total) newPos = total - 1;
+
+            if (newPos == _playbackSamplePosition)
+                return false;
+
+            _playbackSamplePosition = newPos;
+
+            // beide Views aktualisieren
+            _overviewView.PlaybackSample = _playbackSamplePosition;
+            _detailView.PlaybackSample = _playbackSamplePosition;
+
+            // Detail-View mitscrollen lassen
+            EnsurePlayheadVisibleInDetail();
+
+            return true;
+        }
+
+        /// <summary>
+        /// Passt VisibleStartSample im Detail-View so an, dass der Playhead im Sichtfenster liegt.
+        /// Aktualisiert auch das Fenster im Overview.
+        /// </summary>
+        private void EnsurePlayheadVisibleInDetail()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            int total = _currentSamples.Length;
+            int viewStart = _detailView.VisibleStartSample;
+            int viewCount = _detailView.VisibleSampleCount;
+
+            if (viewCount <= 0)
+            {
+                // falls noch nicht gesetzt: gesamter Clip sichtbar
+                viewStart = 0;
+                viewCount = total;
+                _detailView.VisibleStartSample = viewStart;
+                _detailView.VisibleSampleCount = viewCount;
+            }
+
+            int play = _playbackSamplePosition;
+            int windowEnd = viewStart + viewCount;
+
+            if (play < viewStart)
+            {
+                // nach links scrollen
+                _detailView.VisibleStartSample = play;
+            }
+            else if (play >= windowEnd)
+            {
+                // nach rechts scrollen
+                int newStart = play - viewCount + 1;
+                if (newStart < 0) newStart = 0;
+                _detailView.VisibleStartSample = newStart;
+            }
+
+            // Fensterausschnitt im Overview aktualisieren (nur Anzeige, kein Event)
+            int vs = _detailView.VisibleStartSample;
+            int ve = vs + _detailView.VisibleSampleCount;
+            if (ve > total) ve = total;
+            if (ve > vs)
+            {
+                _overviewView.SetSelection(vs, ve, raiseEvent: false);
+            }
+        }
+
         private void DetailView_VisibleRangeChanged(int startSample, int endSample)
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
