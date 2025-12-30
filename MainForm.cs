@@ -623,6 +623,27 @@ namespace MinimalSoundEditor
                 return true;
             }
 
+            // CTRL+C -> Copy selection
+            if (keyData == (Keys.Control | Keys.C))
+            {
+                CopySelection();
+                return true;
+            }
+
+            // CTRL+V -> Paste (insert)
+            if (keyData == (Keys.Control | Keys.V))
+            {
+                PasteInsert();
+                return true;
+            }
+
+            // CTRL+SHIFT+V -> Paste (overwrite)
+            if (keyData == (Keys.Control | Keys.Shift | Keys.V))
+            {
+                PasteOverwrite();
+                return true;
+            }
+
             // CTRL+Z -> Undo
             if (keyData == (Keys.Control | Keys.Z))
             {

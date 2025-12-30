@@ -182,36 +182,36 @@ namespace MinimalSoundEditor
             // toolStripMenuItem3
             // 
             toolStripMenuItem3.Name = "toolStripMenuItem3";
-            toolStripMenuItem3.Size = new Size(180, 22);
+            toolStripMenuItem3.Size = new Size(145, 22);
             toolStripMenuItem3.Text = "Light";
             // 
             // darkToolStripMenuItem
             // 
             darkToolStripMenuItem.Name = "darkToolStripMenuItem";
-            darkToolStripMenuItem.Size = new Size(180, 22);
+            darkToolStripMenuItem.Size = new Size(145, 22);
             darkToolStripMenuItem.Text = "Dark";
             // 
             // toolStripSeparator4
             // 
             toolStripSeparator4.Name = "toolStripSeparator4";
-            toolStripSeparator4.Size = new Size(177, 6);
+            toolStripSeparator4.Size = new Size(142, 6);
             // 
             // einstellungenToolStripMenuItem
             // 
             einstellungenToolStripMenuItem.Name = "einstellungenToolStripMenuItem";
-            einstellungenToolStripMenuItem.Size = new Size(180, 22);
+            einstellungenToolStripMenuItem.Size = new Size(145, 22);
             einstellungenToolStripMenuItem.Text = "Einstellungen";
             // 
             // toolStripSeparator5
             // 
             toolStripSeparator5.Name = "toolStripSeparator5";
-            toolStripSeparator5.Size = new Size(177, 6);
+            toolStripSeparator5.Size = new Size(142, 6);
             // 
             // presetsToolStripMenuItem
             // 
             presetsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { neonToolStripMenuItem, consoleToolStripMenuItem, sunsetToolStripMenuItem });
             presetsToolStripMenuItem.Name = "presetsToolStripMenuItem";
-            presetsToolStripMenuItem.Size = new Size(180, 22);
+            presetsToolStripMenuItem.Size = new Size(145, 22);
             presetsToolStripMenuItem.Text = "Presets";
             // 
             // neonToolStripMenuItem
@@ -386,6 +386,7 @@ namespace MinimalSoundEditor
             // 
             // _btnTheme
             // 
+            _btnTheme.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             _btnTheme.BackgroundImage = Resource1.icon_themes;
             _btnTheme.BackgroundImageLayout = ImageLayout.Stretch;
             _btnTheme.FlatAppearance.BorderSize = 0;
@@ -519,6 +520,7 @@ namespace MinimalSoundEditor
             DoubleBuffered = true;
             Icon = (Icon)resources.GetObject("$this.Icon");
             KeyPreview = true;
+            MinimumSize = new Size(1200, 600);
             Name = "MainForm";
             Text = "Minimal Sound Editor";
             _menuStrip.ResumeLayout(false);

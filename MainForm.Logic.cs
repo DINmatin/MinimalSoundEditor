@@ -81,8 +81,11 @@ namespace MinimalSoundEditor
         // Undo
         private Stack<float[]> _undoStack = new Stack<float[]>();
 
+        // Clipboard (Copy/Paste)
+        private float[] _clipboardSamples = Array.Empty<float>();
+
         // Loop
-       // private CheckBox _chkLoop;
+        // private CheckBox _chkLoop;
         private bool _loopEnabled = false;
 
         private string _currentFilePath;   // aktuell geladene Datei
@@ -2014,7 +2017,179 @@ namespace MinimalSoundEditor
             };
         }
 
+        private void CopySelection()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
 
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Copy",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int length = end - start;
+            if (length <= 0)
+                return;
+
+            _clipboardSamples = new float[length];
+            Array.Copy(_currentSamples, start, _clipboardSamples, 0, length);
+        }
+        private void PasteInsert()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (_clipboardSamples == null || _clipboardSamples.Length == 0)
+            {
+                MessageBox.Show(this, "Clipboard ist leer (keine Audiodaten kopiert).", "Paste (insert)",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int total = _currentSamples.Length;
+            int clipLen = _clipboardSamples.Length;
+
+            // Einfügeposition = aktueller Playhead
+            int insertPos = _playbackSamplePosition;
+            if (insertPos < 0) insertPos = 0;
+            if (insertPos > total) insertPos = total;
+
+            // Undo sichern
+            _undoStack.Push(CloneSamples(_currentSamples));
+
+            var newSamples = new float[total + clipLen];
+
+            // 0..insertPos-1
+            if (insertPos > 0)
+                Array.Copy(_currentSamples, 0, newSamples, 0, insertPos);
+
+            // Clipboard
+            Array.Copy(_clipboardSamples, 0, newSamples, insertPos, clipLen);
+
+            // Rest hinten
+            if (insertPos < total)
+                Array.Copy(_currentSamples, insertPos, newSamples, insertPos + clipLen, total - insertPos);
+
+            _currentSamples = newSamples;
+            int newTotal = newSamples.Length;
+
+            // Zoom im DetailView so gut es geht beibehalten
+            int oldVisibleStart = _detailView.VisibleStartSample;
+            int oldVisibleCount = _detailView.VisibleSampleCount;
+
+            _overviewView.Samples = _currentSamples;
+            _detailView.Samples = _currentSamples;
+
+            if (oldVisibleCount <= 0 || oldVisibleCount > newTotal)
+                oldVisibleCount = newTotal;
+
+            if (oldVisibleStart < 0)
+                oldVisibleStart = 0;
+            if (oldVisibleStart > newTotal - oldVisibleCount)
+                oldVisibleStart = Math.Max(0, newTotal - oldVisibleCount);
+
+            _detailView.VisibleStartSample = oldVisibleStart;
+            _detailView.VisibleSampleCount = oldVisibleCount;
+
+            // neu eingefügten Bereich markieren
+            int selStart = insertPos;
+            int selEnd = insertPos + clipLen;
+
+            _detailView.SetSelection(selStart, selEnd, raiseEvent: true);
+            _overviewView.SetSelection(selStart, selEnd, raiseEvent: false);
+
+            // Playhead ans Ende des eingefügten Blocks setzen
+            _playbackSamplePosition = Math.Min(selEnd, newTotal - 1);
+            _overviewView.PlaybackSample = _playbackSamplePosition;
+            _detailView.PlaybackSample = _playbackSamplePosition;
+
+            UpdateInfo(_currentSampleRate, newTotal);
+            UpdatePlaybackTimerInterval();
+
+            _isDirty = true;
+            UpdateWindowTitle();
+        }
+
+        private void PasteOverwrite()
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (_clipboardSamples == null || _clipboardSamples.Length == 0)
+            {
+                MessageBox.Show(this, "Clipboard ist leer (keine Audiodaten kopiert).", "Paste (overwrite)",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (!TryGetCurrentSelection(out int start, out int end))
+            {
+                MessageBox.Show(this, "Kein Bereich selektiert.", "Paste (overwrite)",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int total = _currentSamples.Length;
+            int selLen = end - start;
+            if (selLen <= 0)
+                return;
+
+            int clipLen = _clipboardSamples.Length;
+
+            // wir überschreiben nur, was in den Clip passt
+            int len = Math.Min(clipLen, total - start);
+            if (len <= 0)
+                return;
+
+            // Undo sichern
+            _undoStack.Push(CloneSamples(_currentSamples));
+
+            for (int i = 0; i < len; i++)
+            {
+                _currentSamples[start + i] = _clipboardSamples[i];
+            }
+
+            int newTotal = total;
+
+            // Zoom im DetailView beibehalten
+            int oldVisibleStart = _detailView.VisibleStartSample;
+            int oldVisibleCount = _detailView.VisibleSampleCount;
+
+            _overviewView.Samples = _currentSamples;
+            _detailView.Samples = _currentSamples;
+
+            if (oldVisibleCount <= 0 || oldVisibleCount > newTotal)
+                oldVisibleCount = newTotal;
+
+            if (oldVisibleStart < 0)
+                oldVisibleStart = 0;
+            if (oldVisibleStart > newTotal - oldVisibleCount)
+                oldVisibleStart = Math.Max(0, newTotal - oldVisibleCount);
+
+            _detailView.VisibleStartSample = oldVisibleStart;
+            _detailView.VisibleSampleCount = oldVisibleCount;
+
+            // Selektion beibehalten
+            _detailView.SetSelection(start, end, raiseEvent: true);
+            _overviewView.SetSelection(start, end, raiseEvent: false);
+
+            // Playhead clampen
+            if (_playbackSamplePosition >= newTotal)
+                _playbackSamplePosition = newTotal - 1;
+            if (_playbackSamplePosition < 0 && newTotal > 0)
+                _playbackSamplePosition = 0;
+
+            _overviewView.PlaybackSample = _playbackSamplePosition;
+            _detailView.PlaybackSample = _playbackSamplePosition;
+
+            UpdateInfo(_currentSampleRate, newTotal);
+            UpdatePlaybackTimerInterval();
+
+            _isDirty = true;
+            UpdateWindowTitle();
+        }
 
         private void ApplyColorSetToTheme(ThemeColorSet set, ThemeDefinition t)
         {
