@@ -21,21 +21,6 @@ namespace MinimalSoundEditor
         private readonly Dictionary<Control, (Size size, Point loc)> _hoverBackup
             = new Dictionary<Control, (Size, Point)>();
 
-        // private WaveformView _overviewView;
-        // private WaveformView _detailView;
-        //private Button _btnOpen;
-        //private Button _btnDeleteSelection;
-        //private Button _btnUndo;
-        //private Button _btnPlay;
-        //private Button _btnStop;
-        //  private Button _btnTheme;
-        //  private Label _lblInfo;
-
-        //  private Panel _topPanel;
-        // private Panel _overviewPanel;
-
-        // private MenuStrip _menuStrip;
-
         private ToolStripMenuItem _miThemeLight;
         private ToolStripMenuItem _miThemeDark;
 
@@ -98,339 +83,7 @@ namespace MinimalSoundEditor
             Aac // AAC in .m4a/.mp4 Container
         }
 
-        //public MainForm()
-        //{
-        //    _instance = this;
-
-        //    InitializeComponent();
-
-        //    // 1. Code-Defaults setzen
-        //    InitThemes();
-
-        //    // 2. Themes aus themes.json (HEX) laden
-        //    LoadThemeDefaultsFromFile();
-
-        //    // 3. User-Mode (Light/Dark) aus settings.json lesen
-        //    LoadThemeSettings();
-
-        //    // 4. Anwenden
-        //    ApplyTheme();
-        //    UpdateThemeMenuChecks();
-        //}
-
-
-
-        private void InitializeCustomUi()
-        {
-        //    Text = "Minimal Sound Editor";
-        //    Width = 1000;
-        //    Height = 600;
-        //    KeyPreview = true;
-
-        //    const int toolbarTop = 6;
-        //    const int toolbarHeight = 36;
-
-        //    // === OVERVIEW (oben, klein) ===
-        //    _overviewView = new WaveformView
-        //    {
-        //        Dock = DockStyle.Fill,
-        //        Zoom = 0.5f
-        //    };
-        //    _overviewView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
-        //    _overviewView.SelectionChanged += OverviewView_SelectionChanged;
-        //    _overviewView.MouseDoubleClick += OverviewView_MouseDoubleClick;
-
-        //    _overviewPanel = new Panel
-        //    {
-        //        Dock = DockStyle.Top,
-        //        Height = 80
-        //    };
-        //    _overviewPanel.Controls.Add(_overviewView);
-
-        //    // === DETAIL (unten, Editing) ===
-        //    _detailView = new WaveformView
-        //    {
-        //        Dock = DockStyle.Fill,
-        //        Zoom = 1.0f
-        //    };
-        //    _detailView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
-        //    _detailView.SelectionChanged += DetailView_SelectionChanged;
-
-        //    // === TOP BUTTON BAR ===
-        //    _btnOpen = new Button
-        //    {
-        //        Text = "",
-        //        Width = toolbarHeight,
-        //        Left = 10,
-        //        Top = toolbarTop,
-        //        Height = toolbarHeight
-        //    };
-        //    _btnOpen.Click += BtnOpen_Click;
-
-           
-
-        //    _btnDeleteSelection = new Button
-        //    {
-        //        Text = "",
-        //        Width = toolbarHeight,
-        //        Left = 290,
-        //        Top = toolbarTop,
-        //        Height = toolbarHeight
-        //    };
-        //    _btnDeleteSelection.Click += BtnDeleteSelection_Click;
-
-
-        //    //_btnUndo = new Button
-        //    //{
-        //    //    Text = "",
-        //    //    Width = toolbarHeight,
-        //    //    Left = 290 + 42,
-        //    //    Top = toolbarTop,
-        //    //    Height = toolbarHeight
-        //    //};
-        //    //_btnUndo.Click += BtnUndo_Click;            // ✅ richtig
-
-
-        //    //_btnPlay = new Button
-        //    //{
-        //    //    Text = "",
-        //    //    Width = toolbarHeight,
-        //    //    Top = toolbarTop,
-        //    //    Height = toolbarHeight,
-        //    //    BackColor = Color.Transparent,
-        //    //    Left = 420
-        //    //};
-        //    //_btnPlay.Click += BtnPlay_Click;
-
-        //    //_btnStop = new Button
-        //    //{
-        //    //    Text = "",
-        //    //    Width = toolbarHeight,
-        //    //    Left = 420+42,
-        //    //    Top = toolbarTop,
-        //    //    Height = toolbarHeight
-        //    //};
-        //    //_btnStop.Click += BtnStop_Click;
-
-        //    _chkLoop = new CheckBox
-        //    {
-        //        Appearance = Appearance.Button,
-        //        Text = "",
-        //        Width = toolbarHeight,
-        //        Left = 420+42+42,
-        //        Top = toolbarTop,
-        //        Height = toolbarHeight,
-        //        TextAlign = ContentAlignment.MiddleCenter
-        //    };
-        //    _chkLoop.CheckedChanged += (s, e) =>
-        //    {
-        //        _loopEnabled = _chkLoop.Checked;
-        //    };
-
-        //    //_btnTheme = new Button
-        //    //{
-        //    //    Text = "",
-        //    //    Width = toolbarHeight,
-        //    //    Left = 660,
-        //    //    Top = toolbarTop,
-        //    //    Height = toolbarHeight
-        //    //};
-        //    //_btnTheme.Click += (s, e) => OpenThemeSettings();
-        //    // OPEN (kannst du später auch ein schönes „ordner“-Icon spendieren)
-        //    StyleToolbarButton(_btnOpen, Resource1.icon_openFile, "");
-
-        //    // DELETE SELECTION
-        //    StyleToolbarButton(_btnDeleteSelection, Resource1.icon_del, "");
-
-        //    // UNDO
-        //    StyleToolbarButton(_btnUndo, Resource1.icon_undo, "");
-
-        //    // PLAY
-        //    StyleToolbarButton(_btnPlay, Resource1.icon_play, "");
-
-        //    // STOP
-        //    StyleToolbarButton(_btnStop, Resource1.icon_stop, "");
-
-        //    // LOOP – CheckBox als Button mit Icon
-        //    {
-        //        Image icon = resizeIconImage( Resource1.icon_loop);
-
-        //        _chkLoop.Image = icon;
-        //        _chkLoop.ImageAlign = ContentAlignment.MiddleLeft;
-        //        _chkLoop.Text = "";
-        //        _chkLoop.TextImageRelation = TextImageRelation.ImageAboveText;
-        //        _chkLoop.Padding = new Padding(1, 0, 1, 0);
-        //        _chkLoop.FlatStyle = FlatStyle.Flat;
-        //        _chkLoop.FlatAppearance.BorderSize = 0;
-        //        _chkLoop.BackColor = Color.Transparent;
-        //        _chkLoop.FlatAppearance.MouseOverBackColor = Color.Pink;
-        //        _chkLoop.FlatAppearance.CheckedBackColor = Color.MediumPurple;
-        //    }
-
-        //    // THEME
-        //    StyleToolbarButton(_btnTheme, Resource1.icon_themes, "");
-
-        //    //_lblInfo = new Label
-        //    //{
-        //    //    Text = "Keine Datei geladen",
-        //    //    AutoSize = true,
-        //    //    Left = 760,
-        //    //    Top = 15
-        //    //};
-
-        //    _topPanel = new Panel
-        //    {
-        //        Height = toolbarTop + toolbarHeight + 4, // z.B. 6 + 36 + 4 = 46
-        //        Dock = DockStyle.Top
-        //    };
-        //    _topPanel.Controls.AddRange(new Control[]
-        //    {
-        //_btnOpen,
-        //_btnDeleteSelection,
-        //_btnUndo,
-        //_btnPlay,
-        //_btnStop,
-        //_chkLoop,
-        //_btnTheme,
-        //_lblInfo
-        //    });
-
-        //    // === MENÜLEISTE ===
-        //    _menuStrip = new MenuStrip
-        //    {
-        //        Dock = DockStyle.Top
-        //    };
-
-        //    // --- Datei ---
-        //    var miFile = new ToolStripMenuItem("&Datei");
-
-        //    //var miFileOpen = new ToolStripMenuItem("Öffnen...", null, (s, e) => BtnOpen_Click(s, e))
-        //    //{
-        //    //    ShortcutKeys = Keys.Control | Keys.O
-        //    //};
-
-        //    //var miFileSave = new ToolStripMenuItem("Speichern", null, (s, e) => SaveWithPrompt())
-        //    //{
-        //    //    ShortcutKeys = Keys.Control | Keys.S
-        //    //};
-
-        //    //var miFileSaveAs = new ToolStripMenuItem("Speichern unter...", null, (s, e) => SaveAsWithFormat())
-        //    //{
-        //    //    ShortcutKeys = Keys.Control | Keys.Shift | Keys.S
-        //    //};
-
-        //    //var miFileExportSel = new ToolStripMenuItem("Auswahl exportieren...", null, (s, e) => ExportSelectionAs())
-        //    //{
-        //    //    ShortcutKeys = Keys.Control | Keys.Shift | Keys.E
-        //    //};
-
-        //    //var miFileExit = new ToolStripMenuItem("Beenden", null, (s, e) => Close());
-
-        //    miFile.DropDownItems.AddRange(new ToolStripItem[]
-        //    {
-        //miFileOpen,
-        //new ToolStripSeparator(),
-        //miFileSave,
-        //miFileSaveAs,
-        //new ToolStripSeparator(),
-        //miFileExportSel,
-        //new ToolStripSeparator(),
-        //miFileExit
-        //    });
-
-        //    // --- Ansicht ---
-        //    var miView = new ToolStripMenuItem("&Ansicht");
-
             
-
-        //    //var miViewZoomAll = new ToolStripMenuItem("Alles anzeigen", null, (s, e) => ZoomAll())
-        //    //{
-        //    //    ShortcutKeys = Keys.Control | Keys.NumPad0
-        //    //};
-
-        //    miView.DropDownItems.AddRange(new ToolStripItem[]
-        //    {
-        //miViewZoomAll
-        //    });
-
-        //    // --- Theme ---
-        //    var miTheme = new ToolStripMenuItem("&Theme");
-
-        //    _miThemeLight = new ToolStripMenuItem("Light", null, (s, e) =>
-        //    {
-        //        _currentThemeMode = ThemeMode.Light;
-        //        ApplyTheme();
-        //        SaveThemeSettings();
-        //        UpdateThemeMenuChecks();
-        //    })
-        //    {
-        //        CheckOnClick = false
-        //    };
-
-        //    _miThemeDark = new ToolStripMenuItem("Dark", null, (s, e) =>
-        //    {
-        //        _currentThemeMode = ThemeMode.Dark;
-        //        ApplyTheme();
-        //        SaveThemeSettings();
-        //        UpdateThemeMenuChecks();
-        //    })
-        //    {
-        //        CheckOnClick = false
-        //    };
-
-        //    var miThemeSettings = new ToolStripMenuItem("Einstellungen...", null, (s, e) => OpenThemeSettings())
-        //    {
-        //        ShortcutKeys = Keys.Control | Keys.T
-        //    };
-
-        //    // Presets
-        //    var miPresets = new ToolStripMenuItem("Presets");
-        //    var miPresetNeon = new ToolStripMenuItem("Neon", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetNeon));
-        //    var miPresetConsole = new ToolStripMenuItem("Console Green", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetConsoleGreen));
-        //    var miPresetSunset = new ToolStripMenuItem("Warm Sunset", null, (s, e) => ApplyPresetToCurrentTheme(ApplyPresetWarmSunset));
-
-        //    miPresets.DropDownItems.AddRange(new ToolStripItem[]
-        //    {
-        //miPresetNeon,
-        //miPresetConsole,
-        //miPresetSunset
-        //    });
-
-        //    miTheme.DropDownItems.AddRange(new ToolStripItem[]
-        //    {
-        //_miThemeLight,
-        //_miThemeDark,
-        //new ToolStripSeparator(),
-        //miThemeSettings,
-        //new ToolStripSeparator(),
-        //miPresets
-        //    });
-
-        //    _menuStrip.Items.AddRange(new ToolStripItem[]
-        //    {
-        //miFile,
-        //miView,
-        //miTheme
-        //    });
-
-        //    MainMenuStrip = _menuStrip;
-
-        //    // === Controls anordnen (Reihenfolge für DockStyle.Top wichtig!) ===
-        //    Controls.Add(_detailView);    // Fill
-        //    Controls.Add(_overviewPanel); // Top (unterhalb TopPanel)
-        //    Controls.Add(_topPanel);      // Top (unterhalb Menü)
-        //    Controls.Add(_menuStrip);     // Top (ganz oben)
-
-        //    //// === Playback-Timer (UI-Thread) ===
-        //    //_playbackTimer = new System.Windows.Forms.Timer
-        //    //{
-        //    //    Interval = 16
-        //    //};
-        //    //_playbackTimer.Tick += PlaybackTimer_Tick;
-
-        //    //FormClosing += MainForm_FormClosing;
-        //    //Resize += MainForm_Resize;
-        }
         private Image resizeIconImage(Image icon)
         {
             Image img = icon;
@@ -950,124 +603,6 @@ namespace MinimalSoundEditor
         }
 
 
-
-        // Tastatur-Shortcuts
-        //protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
-        //{
-        //    // CTRL+O -> Öffnen
-        //    if (keyData == (Keys.Control | Keys.O))
-        //    {
-        //        BtnOpen_Click(null, EventArgs.Empty);
-        //        return true;
-        //    }
-
-        //    // CTRL+T -> Theme-Settings
-        //    if (keyData == (Keys.Control | Keys.T))
-        //    {
-        //        OpenThemeSettings();
-        //        return true;
-        //    }
-
-        //    // SPACE -> Play/Stop
-        //    if (keyData == Keys.Space)
-        //    {
-        //        TogglePlayStop();
-        //        return true;
-        //    }
-
-        //    // CTRL+Z -> Undo
-        //    if (keyData == (Keys.Control | Keys.Z))
-        //    {
-        //        Undo();
-        //        return true;
-        //    }
-
-        //    // L -> Loop Toggle
-        //    if (keyData == Keys.L)
-        //    {
-        //        _chkLoop.Checked = !_chkLoop.Checked;
-        //        return true;
-        //    }
-
-        //    // DEL -> Bereich löschen
-        //    if (keyData == Keys.Delete)
-        //    {
-        //        BtnDeleteSelection_Click(null, EventArgs.Empty);
-        //        return true;
-        //    }
-
-        //    // NUM 1 -> an den Anfang der Selektion springen
-        //    if (keyData == Keys.NumPad1)
-        //    {
-        //        JumpToSelectionEdge(toStart: true);
-        //        return true;
-        //    }
-
-        //    // NUM 2 -> ans Ende der Selektion springen
-        //    if (keyData == Keys.NumPad2)
-        //    {
-        //        JumpToSelectionEdge(toStart: false);
-        //        return true;
-        //    }
-
-        //    // NUM 0 -> an den Anfang des ganzen Clips springen
-        //    if (keyData == Keys.NumPad0)
-        //    {
-        //        JumpToStartOfFile();
-        //        return true;
-        //    }
-
-        //    // CTRL+NUM 0 -> View All (alles auszoomen)
-        //    if (keyData == (Keys.Control | Keys.NumPad0))
-        //    {
-        //        ZoomAll();
-        //        return true;
-        //    }
-
-        //    // CTRL+N -> Bereich normalisieren
-        //    if (keyData == (Keys.Control | Keys.N))
-        //    {
-        //        NormalizeSelection();
-        //        return true;
-        //    }
-
-        //    // CTRL+E -> Bereich exportieren
-        //    if (keyData == (Keys.Control | Keys.E))
-        //    {
-        //        ExportSelection();
-        //        return true;
-        //    }
-
-        //    // CTRL+S -> Datei speichern (Overwrite/Rename)
-        //    if (keyData == (Keys.Control | Keys.S))
-        //    {
-        //        SaveWithPrompt(this, null);
-        //        return true;
-        //    }
-
-        //    // CTRL+A -> Alles selektieren
-        //    if (keyData == (Keys.Control | Keys.A))
-        //    {
-        //        SelectAll();
-        //        return true;
-        //    }
-
-        //    // CTRL+SHIFT+S -> Save As (Format wählen)
-        //    if (keyData == (Keys.Control | Keys.Shift | Keys.S))
-        //    {
-        //        SaveAsWithFormat();
-        //        return true;
-        //    }
-
-        //    // CTRL+SHIFT+E -> Export Selection As (Format wählen)
-        //    if (keyData == (Keys.Control | Keys.Shift | Keys.E))
-        //    {
-        //        ExportSelectionAs();
-        //        return true;
-        //    }
-
-        //    return base.ProcessCmdKey(ref msg, keyData);
-        //}
         private void JumpToStartOfFile()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1099,8 +634,19 @@ namespace MinimalSoundEditor
             UpdatePlaybackTimerInterval();
         }
 
-        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            // 1) Vor dem echten Schließen prüfen, ob etwas gespeichert werden soll.
+            //    Wenn der Benutzer "Abbrechen" wählt oder das Speichern abbricht,
+            //    brechen wir das Schließen ab.
+            if (!CheckUnsavedChangesBeforeClose())
+            {
+                e.Cancel = true;
+                _isClosing = false; // wichtig: damit Playback etc. normal weiterlaufen
+                return;
+            }
+
+            // 2) Ab hier wirklich schließen -> keine weiteren Aktionen mehr zulassen
             _isClosing = true;
 
             if (_playbackTimer != null)
@@ -1122,31 +668,6 @@ namespace MinimalSoundEditor
             _currentProvider = null;
         }
 
-        //private void BtnOpen_Click(object sender, EventArgs e)
-        //{
-        //    using var ofd = new OpenFileDialog
-        //    {
-        //        Filter = "Audio-Dateien|*.wav;*.mp3;*.flac;*.aiff;*.wma;*.m4a|Alle Dateien|*.*",
-        //        Title = "Audiodatei öffnen"
-        //    };
-
-        //    if (ofd.ShowDialog(this) != DialogResult.OK)
-        //        return;
-
-        //    try
-        //    {
-        //        LoadAudioFile(ofd.FileName);
-        //        _lblInfo.Text = ofd.FileName;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        MessageBox.Show(this,
-        //            "Fehler beim Laden der Datei:\n" + ex.Message,
-        //            "Fehler",
-        //            MessageBoxButtons.OK,
-        //            MessageBoxIcon.Error);
-        //    }
-        //}
 
         private void LoadAudioFile(string filePath)
         {
@@ -1246,25 +767,60 @@ namespace MinimalSoundEditor
             _trackDurationSeconds = sampleCount / (double)sampleRate;
             _lblInfo.Text = $"Samples: {sampleCount} | Dauer: {_trackDurationSeconds:0.00} s";
         }
+        /// <summary>
+        /// Prüft, ob es ungespeicherte Änderungen gibt, und fragt optional nach,
+        /// ob vor dem Beenden gespeichert werden soll.
+        /// Rückgabe:
+        /// - true  = Schließen ist ok
+        /// - false = Schließen abbrechen
+        /// </summary>
+        private bool CheckUnsavedChangesBeforeClose()
+        {
+            // Wenn nichts geladen oder nichts geändert wurde -> kein nerviger Dialog
+            if (_currentSamples == null || _currentSamples.Length == 0 || !_isDirty)
+                return true;
 
-        //private void UpdatePlaybackTimerInterval()
-        //{
-        //    if (_currentSamples == null || _currentSamples.Length == 0 || _currentSampleRate <= 0)
-        //        return;
+            string fileName = string.IsNullOrEmpty(_currentFilePath)
+                ? "unbenannter Clip"
+                : Path.GetFileName(_currentFilePath);
 
-        //    int width = _detailView.Width;
-        //    if (width <= 0)
-        //        width = 1000;
+            var result = MessageBox.Show(
+                this,
+                $"Möchtest du die Änderungen an \"{fileName}\" speichern, bevor du die App schließt?",
+                "Änderungen speichern?",
+                MessageBoxButtons.YesNoCancel,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button1);
 
-        //    _trackDurationSeconds = _currentSamples.Length / (double)_currentSampleRate;
+            if (result == DialogResult.Cancel)
+            {
+                // Benutzer möchte doch nicht schließen
+                return false;
+            }
 
-        //    double idealMs = (_trackDurationSeconds * 1000.0) / width;
+            if (result == DialogResult.No)
+            {
+                // Änderungen verwerfen -> schließen
+                return true;
+            }
 
-        //    int intervalMs = (int)Math.Max(2, Math.Min(idealMs, 15));
+            // result == Yes -> speichern
+            bool wasDirty = _isDirty;
 
-        //    if (_playbackTimer != null)
-        //        _playbackTimer.Interval = intervalMs;
-        //}
+            bool needSaveAs =
+                string.IsNullOrEmpty(_currentFilePath) ||
+                !_currentFilePath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase);
+
+            SaveCurrentFile(needSaveAs);
+
+            // Wenn _isDirty danach IMMER noch true ist, hat der Benutzer
+            // vermutlich den SaveFileDialog abgebrochen -> nicht schließen.
+            if (wasDirty && _isDirty)
+                return false;
+
+            return true;
+        }
+
 
         private void UpdatePlaybackTimerInterval()
         {
@@ -1273,47 +829,6 @@ namespace MinimalSoundEditor
                 _playbackTimer.Interval = 16;   // ~60 FPS
         }
 
-        //private void BtnUndo_Click(object sender, EventArgs e)
-        //{
-        //    Undo();
-        //}
-        //private void BtnDeleteSelection_Click(object sender, EventArgs e)
-        //{
-        //    if (_currentSamples == null || _currentSamples.Length == 0)
-        //        return;
-
-        //    // Undo sichern
-        //    _undoStack.Push(CloneSamples(_currentSamples));
-
-        //    // Nur im Detail-Track löschen
-        //    _detailView.DeleteSelection();
-
-        //    // Loop-Bereich ungültig, weil sich die Samples verschoben haben
-        //    _chkLoop.Checked = false;
-
-        //    // Samples aus Detail-View übernehmen
-        //    _currentSamples = _detailView.Samples ?? Array.Empty<float>();
-        //    _overviewView.Samples = _currentSamples;
-
-        //    if (_currentSamples.Length == 0)
-        //    {
-        //        _playbackSamplePosition = 0;
-        //        _overviewView.PlaybackSample = 0;
-        //        _detailView.PlaybackSample = 0;
-        //    }
-        //    else if (_playbackSamplePosition >= _currentSamples.Length)
-        //    {
-        //        _playbackSamplePosition = _currentSamples.Length - 1;
-        //        _overviewView.PlaybackSample = _playbackSamplePosition;
-        //        _detailView.PlaybackSample = _playbackSamplePosition;
-        //    }
-
-        //    UpdateInfo(_currentSampleRate, _currentSamples.Length);
-        //    UpdatePlaybackTimerInterval();
-
-        //    _isDirty = true;
-        //    UpdateWindowTitle();
-        //}
 
         private float[] CloneSamples(float[] src)
         {
@@ -1427,16 +942,6 @@ namespace MinimalSoundEditor
             catch { }
         }
 
-        // STOP
-        //private void BtnStop_Click(object sender, EventArgs e)
-        //{
-        //    if (_waveOut == null)
-        //        return;
-
-        //    try { _waveOut.Stop(); _playbackTimer?.Stop(); } catch { }
-        //    _playbackTimer?.Stop();
-        //}
-
         private void TogglePlayStop()
         {
             if (_waveOut == null || _waveOut.PlaybackState != PlaybackState.Playing)
@@ -1482,14 +987,7 @@ namespace MinimalSoundEditor
             // nutzt jetzt denselben Weg wie Tastatur-Sprünge
             JumpToSample(sampleIndex, restartIfPlaying: true);
         }
-        //private void ZoomAll()
-        //{
-        //    if (_currentSamples == null || _currentSamples.Length == 0)
-        //        return;
-
-        //    _detailView.VisibleStartSample = 0;
-        //    _detailView.VisibleSampleCount = 0; // 0 = „ganzer Track“
-        //}
+       
         private void NormalizeSelection()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1729,40 +1227,6 @@ namespace MinimalSoundEditor
             UpdateWindowTitle();
         }
 
-        //private void SaveWithPrompt()
-        //{
-        //    if (_currentSamples == null || _currentSamples.Length == 0)
-        //        return;
-
-        //    // Falls wir schon eine WAV-Datei haben: Nachfrage Overwrite/Rename
-        //    if (!string.IsNullOrEmpty(_currentFilePath) &&
-        //        _currentFilePath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
-        //    {
-        //        var result = MessageBox.Show(this,
-        //            $"Datei überschreiben?\n{_currentFilePath}\n\n" +
-        //            "Yes = überschreiben\nNo = unter neuem Namen speichern\nCancel = abbrechen",
-        //            "Speichern",
-        //            MessageBoxButtons.YesNoCancel,
-        //            MessageBoxIcon.Question);
-
-        //        if (result == DialogResult.Cancel)
-        //            return;
-
-        //        if (result == DialogResult.Yes)
-        //        {
-        //            SaveCurrentFile(saveAs: false);
-        //        }
-        //        else if (result == DialogResult.No)
-        //        {
-        //            SaveCurrentFile(saveAs: true);
-        //        }
-        //    }
-        //    else
-        //    {
-        //        // bisher keine oder kein WAV -> direkt „Speichern unter“
-        //        SaveCurrentFile(saveAs: true);
-        //    }
-        //}
         private void ExportSamplesToFile(float[] samples, int sampleRate, string filePath, AudioExportFormat format)
         {
             if (samples == null || samples.Length == 0)
@@ -1907,22 +1371,7 @@ namespace MinimalSoundEditor
 
             return true;
         }
-        //private void SaveAsWithFormat()
-        //{
-        //    if (_currentSamples == null || _currentSamples.Length == 0)
-        //        return;
-
-        //    if (!TryChooseExportFileAndFormat(selectionOnly: false,
-        //            out string path, out AudioExportFormat format))
-        //        return;
-
-        //    ExportSamplesToFile(_currentSamples, _currentSampleRate, path, format);
-
-        //    // Nur wenn wir wirklich den „Haupttrack“ speichern:
-        //    _currentFilePath = path;
-        //    _isDirty = false;
-        //    UpdateWindowTitle();
-        //}
+       
         private string GetSettingsFilePath()
         {
             var dir = Path.Combine(
@@ -1970,33 +1419,6 @@ namespace MinimalSoundEditor
             }
         }
 
-
-
-        //private void ExportSelectionAs()
-        //{
-        //    if (_currentSamples == null || _currentSamples.Length == 0)
-        //        return;
-
-        //    if (!TryGetCurrentSelection(out int start, out int end))
-        //    {
-        //        MessageBox.Show(this, "Kein Bereich selektiert.", "Exportieren",
-        //            MessageBoxButtons.OK, MessageBoxIcon.Information);
-        //        return;
-        //    }
-
-        //    int length = end - start;
-        //    if (length <= 0)
-        //        return;
-
-        //    if (!TryChooseExportFileAndFormat(selectionOnly: true,
-        //            out string path, out AudioExportFormat format))
-        //        return;
-
-        //    var sel = new float[length];
-        //    Array.Copy(_currentSamples, start, sel, 0, length);
-
-        //    ExportSamplesToFile(sel, _currentSampleRate, path, format);
-        //}
 
         bool TryGetCurrentSelection(out int startSample, out int endSample)
         {

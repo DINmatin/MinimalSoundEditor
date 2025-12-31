@@ -55,15 +55,7 @@ namespace MinimalSoundEditor
                     _chkLoop.BackgroundImage = Resource1.icon_loop;
             };
 
-            // Icons stylen …
-            //StyleToolbarButton(_btnOpen, Resource1.icon_openFile, "");
-            //StyleToolbarButton(_btnDeleteSelection, Resource1.icon_del, "");
-            //StyleToolbarButton(_btnUndo, Resource1.icon_undo, "");
-            //StyleToolbarButton(_btnPlay, Resource1.icon_play, "");
-            //StyleToolbarButton(_btnStop, Resource1.icon_stop, "");
-            // Loop-Icon-Block …
-            //StyleToolbarButton(_btnTheme, Resource1.icon_themes, "");
-
+          
             // LABEL (hier ist noch ein kleiner Bug, s.u.)
 
             InitThemes();
@@ -589,12 +581,6 @@ namespace MinimalSoundEditor
                 _waveOut = null;
             }
 
-            //_waveOut = new WaveOutEvent
-            //{
-            //    DesiredLatency = 50,   // ca. 50 ms Gesamtlatenz
-            //    NumberOfBuffers = 2    // 2 kleine Buffer
-            //};
-
             // etwas konservativere Standard-Einstellungen verwenden
             _waveOut = new WaveOutEvent();
 
@@ -677,13 +663,7 @@ namespace MinimalSoundEditor
         // Tastatur-Shortcuts
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            //// CTRL+O -> Öffnen
-            //if (keyData == (Keys.Control | Keys.O))
-            //{
-            //    BtnOpen_Click(null, EventArgs.Empty);
-            //    return true;
-            //}
-
+           
             // CTRL+T -> Theme-Settings
             if (keyData == (Keys.Control | Keys.T))
             {
@@ -761,13 +741,7 @@ namespace MinimalSoundEditor
                 return true;
             }
 
-            // CTRL+NUM 0 -> View All (alles auszoomen)
-            //if (keyData == (Keys.Control | Keys.NumPad0))
-            //{
-            //    ZoomAll();
-            //    return true;
-            //}
-
+           
             // CTRL+N -> Bereich normalisieren
             if (keyData == (Keys.Control | Keys.N))
             {
@@ -775,20 +749,7 @@ namespace MinimalSoundEditor
                 return true;
             }
 
-            // CTRL+E -> Bereich exportieren
-            //if (keyData == (Keys.Control | Keys.E))
-            //{
-            //    ExportSelection();
-            //    return true;
-            //}
-
-            //// CTRL+S -> Datei speichern (Overwrite/Rename)
-            //if (keyData == (Keys.Control | Keys.S))
-            //{
-            //    SaveWithPrompt(this, null);
-            //    return true;
-            //}
-
+           
             // CTRL+A -> Alles selektieren
             if (keyData == (Keys.Control | Keys.A))
             {
