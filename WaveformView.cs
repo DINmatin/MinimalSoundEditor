@@ -20,6 +20,7 @@ namespace MinimalSoundEditor
     public class WaveformView : Control
     {
         private const int RULER_HEIGHT = 14;   // oben: Zeit-Leiste
+        private const int DB_SCALE_MARGIN = 40; // Breite der linken dB-Skala
 
         private float[] _samples = Array.Empty<float>(); // nie null
         private float _zoom = 1.0f; // vertikaler Zoom
@@ -367,6 +368,8 @@ namespace MinimalSoundEditor
             var samples = _samples ?? Array.Empty<float>();
             int totalSamples = samples.Length;
 
+            int leftMargin = ShowDbScale ? DB_SCALE_MARGIN : 0;
+
             // zu klein? => nix machen
             if (width <= 1 || height <= 1)
             {
@@ -564,6 +567,12 @@ namespace MinimalSoundEditor
                         x2 = tmp;
                     }
 
+                    if (ShowDbScale)
+                    {
+                        if (x1 < DB_SCALE_MARGIN) x1 = DB_SCALE_MARGIN;
+                        if (x2 < DB_SCALE_MARGIN) x2 = DB_SCALE_MARGIN;
+                    }
+
                     int selTop = RULER_HEIGHT;
                     int selHeight = height - RULER_HEIGHT;
                     if (selHeight < 0) selHeight = 0;
@@ -613,6 +622,12 @@ namespace MinimalSoundEditor
                         x2 = tmp;
                     }
 
+                    if (ShowDbScale)
+                    {
+                        if (x1 < DB_SCALE_MARGIN) x1 = DB_SCALE_MARGIN;
+                        if (x2 < DB_SCALE_MARGIN) x2 = DB_SCALE_MARGIN;
+                    }
+
                     using var brush = new SolidBrush(_theme.SelectionFillColor);
                     int selTop = RULER_HEIGHT;
                     int selHeight = height - RULER_HEIGHT;
@@ -645,6 +660,9 @@ namespace MinimalSoundEditor
 
                     if (xPos < 0) xPos = 0;
                     if (xPos >= width) xPos = width - 1;
+
+                    if (ShowDbScale && xPos < DB_SCALE_MARGIN)
+                        xPos = DB_SCALE_MARGIN;
 
                     using var pen = new Pen(_theme.PlayheadColor, 1);
 
@@ -1525,11 +1543,12 @@ namespace MinimalSoundEditor
             int contentHeight = height - contentTop;
             if (contentHeight <= 0) return;
 
-            const int margin = 40; // Breite der Skala links
+            int margin = DB_SCALE_MARGIN; // statt const int margin = 40;
 
             float midY = contentTop + contentHeight / 2f;
             float scaleY = GetAmplitudeScaleY(contentHeight);
-            //if (scaleY <= 1f) scaleY = (contentHeight / 2f - 4);
+
+
 
             // Hintergrundstreifen für die Skala
             using (var bgBrush = new SolidBrush(Color.FromArgb(220, _theme.Background)))
