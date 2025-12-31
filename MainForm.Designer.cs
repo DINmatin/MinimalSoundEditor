@@ -42,6 +42,7 @@ namespace MinimalSoundEditor
             miFileExit = new ToolStripMenuItem();
             ansichtToolStripMenuItem = new ToolStripMenuItem();
             miViewZoomAll = new ToolStripMenuItem();
+            aboutToolStripMenuItem = new ToolStripMenuItem();
             _topPanel = new Panel();
             _chkAutoFollow = new CheckBox();
             _btnNormalize = new Button();
@@ -157,7 +158,7 @@ namespace MinimalSoundEditor
             // 
             // ansichtToolStripMenuItem
             // 
-            ansichtToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { miViewZoomAll });
+            ansichtToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { miViewZoomAll, aboutToolStripMenuItem });
             ansichtToolStripMenuItem.Name = "ansichtToolStripMenuItem";
             ansichtToolStripMenuItem.Size = new Size(59, 20);
             ansichtToolStripMenuItem.Text = "Ansicht";
@@ -169,6 +170,13 @@ namespace MinimalSoundEditor
             miViewZoomAll.Size = new Size(236, 22);
             miViewZoomAll.Text = "Alles anzeigen";
             miViewZoomAll.Click += miViewZoomAll_Click;
+            // 
+            // aboutToolStripMenuItem
+            // 
+            aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
+            aboutToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.I;
+            aboutToolStripMenuItem.Size = new Size(236, 22);
+            aboutToolStripMenuItem.Text = "About...";
             // 
             // _topPanel
             // 
@@ -570,5 +578,6 @@ namespace MinimalSoundEditor
         private ToolStripStatusLabel _lblChannels;
         private ToolStripStatusLabel _lblTotal;
         private CheckBox _chkAutoFollow;
+        private ToolStripMenuItem aboutToolStripMenuItem;
     }
 }

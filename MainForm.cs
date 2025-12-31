@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.IO;
 
 namespace MinimalSoundEditor
 {
@@ -17,6 +18,11 @@ namespace MinimalSoundEditor
         private ContextMenuStrip _detailContextMenu;
         private int _currentChannels = 1;   // default mono
 
+        // Recent files
+        private ToolStripMenuItem _miRecentFiles;
+        private const int MaxRecentFiles = 8;
+        private readonly List<string> _recentFiles = new();
+
         public MainForm()
         {
             // 1) Designer-Init
@@ -24,6 +30,20 @@ namespace MinimalSoundEditor
 
             // 2) Logik-Init
             _instance = this;
+
+            // About
+            aboutToolStripMenuItem.Click += AboutToolStripMenuItem_Click;
+            // Drag & Drop auf Form und Waveforms erlauben
+            AllowDrop = true;
+            DragEnter += MainForm_DragEnter;
+            DragDrop += MainForm_DragDrop;
+
+            _overviewView.AllowDrop = true;
+            _detailView.AllowDrop = true;
+            _overviewView.DragEnter += MainForm_DragEnter;
+            _overviewView.DragDrop += MainForm_DragDrop;
+            _detailView.DragEnter += MainForm_DragEnter;
+            _detailView.DragDrop += MainForm_DragDrop;
 
             // === OVERVIEW (oben, klein) ===
             _overviewView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
@@ -77,6 +97,10 @@ namespace MinimalSoundEditor
             InitThemes();
             LoadThemeDefaultsFromFile();
             LoadThemeSettings();
+
+            CreateRecentFilesMenu();
+            RebuildRecentFilesMenu();
+
             ApplyTheme();
             UpdateThemeMenuChecks();
 
@@ -215,6 +239,62 @@ namespace MinimalSoundEditor
             // Dem DetailView zuweisen
             _detailView.ContextMenuStrip = _detailContextMenu;
         }
+        private static readonly string[] _supportedAudioExtensions =
+{
+    ".wav", ".mp3", ".flac", ".aiff", ".wma", ".m4a", ".aac"
+};
+
+        private void MainForm_DragEnter(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effect = DragDropEffects.None;
+                return;
+            }
+
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            if (files == null || files.Length == 0)
+            {
+                e.Effect = DragDropEffects.None;
+                return;
+            }
+
+            string ext = Path.GetExtension(files[0]).ToLowerInvariant();
+            if (_supportedAudioExtensions.Contains(ext))
+                e.Effect = DragDropEffects.Copy;
+            else
+                e.Effect = DragDropEffects.None;
+        }
+
+        private void MainForm_DragDrop(object sender, DragEventArgs e)
+        {
+            if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+                return;
+
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            if (files == null || files.Length == 0)
+                return;
+
+            string file = files[0];
+
+            if (!File.Exists(file))
+                return;
+
+            try
+            {
+                LoadAudioFile(file);
+                UpdateStatusBar();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "Fehler beim Laden der Datei:\n" + ex.Message,
+                    "Fehler",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
         private void UpdateStatusBar()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -920,6 +1000,21 @@ namespace MinimalSoundEditor
             {
                 _overviewView.SetSelection(vs, ve, raiseEvent: false);
             }
+        }
+        private void CreateRecentFilesMenu()
+        {
+            if (_miRecentFiles != null)
+                return; // schon angelegt
+
+            _miRecentFiles = new ToolStripMenuItem("Zuletzt geöffnet");
+            _miRecentFiles.Name = "miFileRecent";
+
+            // vor "Beenden" einfügen (miFileExit kommt aus dem Designer)
+            int exitIndex = dateiToolStripMenuItem.DropDownItems.IndexOf(miFileExit);
+            if (exitIndex >= 0)
+                dateiToolStripMenuItem.DropDownItems.Insert(exitIndex, _miRecentFiles);
+            else
+                dateiToolStripMenuItem.DropDownItems.Add(_miRecentFiles);
         }
 
         private void DetailView_VisibleRangeChanged(int startSample, int endSample)

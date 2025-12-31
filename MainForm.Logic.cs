@@ -750,7 +750,7 @@ namespace MinimalSoundEditor
             _lastLoadedFilePath = filePath; // NEU: für Auto-Load merken
             _isDirty = false;
             UpdateWindowTitle();
-
+            AddToRecentFiles(filePath);
             // Settings inkl. LastFile direkt persistieren
             SaveThemeSettings();
 
@@ -776,6 +776,17 @@ namespace MinimalSoundEditor
             }
             UpdateStatusBar();
         }
+        public void LoadAudioFileFromExternal(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            if (!File.Exists(path))
+                return;
+
+            LoadAudioFile(path);
+        }
+
         private void UpdateWindowTitle()
         {
             string filePart = string.IsNullOrEmpty(_currentFilePath)
@@ -1458,6 +1469,11 @@ namespace MinimalSoundEditor
                 ["CurrentMode"] = _currentThemeMode.ToString()
             };
 
+            if (_recentFiles != null && _recentFiles.Count > 0)
+            {
+                data["RecentFiles"] = string.Join("|", _recentFiles);
+            }
+
             // NEU: zuletzt geladene Datei merken (falls vorhanden)
             if (!string.IsNullOrEmpty(_lastLoadedFilePath))
                 data["LastFilePath"] = _lastLoadedFilePath;
@@ -1490,7 +1506,22 @@ namespace MinimalSoundEditor
                 {
                     _currentThemeMode = mode;
                 }
+                // NEU: Recent-Files-Liste laden
+                if (data.TryGetValue("RecentFiles", out var recentStr) &&
+                    !string.IsNullOrWhiteSpace(recentStr))
+                {
+                    _recentFiles.Clear();
+                    foreach (var raw in recentStr.Split('|'))
+                    {
+                        var p = raw.Trim();
+                        if (string.IsNullOrEmpty(p))
+                            continue;
 
+                        // doppelte Einträge vermeiden
+                        if (!_recentFiles.Any(x => string.Equals(x, p, StringComparison.OrdinalIgnoreCase)))
+                            _recentFiles.Add(p);
+                    }
+                }
                 // NEU: zuletzt geladener Clip
                 if (data.TryGetValue("LastFilePath", out var lastPath) &&
                     !string.IsNullOrWhiteSpace(lastPath))
@@ -1508,6 +1539,93 @@ namespace MinimalSoundEditor
             catch
             {
                 // egal – dann bleiben wir bei Defaults
+            }
+        }
+        private void AddToRecentFiles(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                return;
+
+            // Entfernen, falls schon in der Liste (case-insensitive)
+            _recentFiles.RemoveAll(p => string.Equals(p, filePath, StringComparison.OrdinalIgnoreCase));
+
+            // vorne einfügen
+            _recentFiles.Insert(0, filePath);
+
+            // auf MaxRecentFiles begrenzen
+            if (_recentFiles.Count > MaxRecentFiles)
+                _recentFiles.RemoveRange(MaxRecentFiles, _recentFiles.Count - MaxRecentFiles);
+
+            RebuildRecentFilesMenu();
+            SaveThemeSettings();
+        }
+
+        private void RebuildRecentFilesMenu()
+        {
+            if (_miRecentFiles == null)
+                return;
+
+            _miRecentFiles.DropDownItems.Clear();
+
+            if (_recentFiles.Count == 0)
+            {
+                var empty = new ToolStripMenuItem("(keine)") { Enabled = false };
+                _miRecentFiles.DropDownItems.Add(empty);
+                return;
+            }
+
+            foreach (var path in _recentFiles)
+            {
+                string fileName = Path.GetFileName(path);
+                var item = new ToolStripMenuItem(fileName)
+                {
+                    Tag = path,
+                    ToolTipText = path
+                };
+                item.Click += RecentFileMenuItem_Click;
+                _miRecentFiles.DropDownItems.Add(item);
+            }
+        }
+        private void AboutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using var dlg = new AboutForm();
+            dlg.ShowDialog(this);
+        }
+
+        private void RecentFileMenuItem_Click(object sender, EventArgs e)
+        {
+            if (sender is not ToolStripMenuItem mi)
+                return;
+
+            if (mi.Tag is not string path || string.IsNullOrEmpty(path))
+                return;
+
+            if (!File.Exists(path))
+            {
+                MessageBox.Show(this,
+                    "Die Datei existiert nicht mehr:\n" + path,
+                    "Datei nicht gefunden",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                _recentFiles.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+                RebuildRecentFilesMenu();
+                SaveThemeSettings();
+                return;
+            }
+
+            try
+            {
+                LoadAudioFile(path);
+                UpdateStatusBar();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "Fehler beim Laden der Datei:\n" + ex.Message,
+                    "Fehler",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
