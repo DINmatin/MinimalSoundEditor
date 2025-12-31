@@ -55,7 +55,22 @@ namespace MinimalSoundEditor
                     _chkLoop.BackgroundImage = Resource1.icon_loop;
             };
 
-          
+            // Auto-Follow: Playhead beim Abspielen immer im Bild halten
+            _chkAutoFollow.Checked = true; // default: AN
+            _autoFollowEnabled = true;
+
+            _chkAutoFollow.CheckedChanged += (s, e) =>
+            {
+                _autoFollowEnabled = _chkAutoFollow.Checked;
+
+                // vorerst gleiche Icons wie beim Loop – tausche die Ressourcen später aus
+                if (_chkAutoFollow.Checked)
+                    _chkAutoFollow.BackgroundImage = Resource1.icon_follow_on;
+                else
+                    _chkAutoFollow.BackgroundImage = Resource1.icon_follow_off;
+            };
+
+
             // LABEL (hier ist noch ein kleiner Bug, s.u.)
 
             InitThemes();

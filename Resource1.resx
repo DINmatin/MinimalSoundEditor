@@ -169,4 +169,10 @@
   <data name="icon_normalize" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>icon_normalize.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="icon_follow_on" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>icon_follow_on.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="icon_follow_off" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>icon_follow_off.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
 </root>

@@ -73,6 +73,9 @@ namespace MinimalSoundEditor
         // private CheckBox _chkLoop;
         private bool _loopEnabled = false;
 
+        // Auto-Follow (Detail-View folgt Playhead)
+        private bool _autoFollowEnabled = true;
+
         private string _currentFilePath;   // aktuell geladene Datei
         private bool _isDirty;             // wurde editiert?
 
@@ -978,7 +981,42 @@ namespace MinimalSoundEditor
             _overviewView.PlaybackSample = pos;
             _detailView.PlaybackSample = pos;
 
+            // Auto-Follow: DetailView so scrollen, dass der Playhead im Fenster bleibt
+            if (_autoFollowEnabled)
+            {
+                int viewStart = _detailView.VisibleStartSample;
+                int viewCount = _detailView.VisibleSampleCount;
+
+                // 0 oder weniger heißt: „ganzer Track“ – dann nicht scrollen
+                if (viewCount <= 0)
+                {
+                    viewCount = _currentSamples.Length;
+                }
+
+                if (viewCount > 0 && _currentSamples.Length > 0)
+                {
+                    int viewEnd = viewStart + viewCount;
+
+                    // ein bisschen Puffer, damit der Playhead nicht direkt am Rand klebt
+                    int margin = (int)(viewCount * 0.2); // 20% des Fensters
+
+                    // zu weit links? -> Fenster nach links schieben
+                    if (pos < viewStart + margin)
+                    {
+                        int newStart = pos - margin;
+                        _detailView.VisibleStartSample = newStart;
+                    }
+                    // zu weit rechts? -> Fenster nach rechts schieben
+                    else if (pos > viewEnd - margin)
+                    {
+                        int newStart = pos - (viewCount - margin);
+                        _detailView.VisibleStartSample = newStart;
+                    }
+                }
+            }
+
             UpdateStatusBar();
+
         }
 
         // Klick in Overview/Detail -> Playhead setzen

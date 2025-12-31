@@ -43,6 +43,7 @@ namespace MinimalSoundEditor
             ansichtToolStripMenuItem = new ToolStripMenuItem();
             miViewZoomAll = new ToolStripMenuItem();
             _topPanel = new Panel();
+            _chkAutoFollow = new CheckBox();
             _btnNormalize = new Button();
             _btnFadeOut = new Button();
             _btnFadeIn = new Button();
@@ -171,6 +172,7 @@ namespace MinimalSoundEditor
             // 
             // _topPanel
             // 
+            _topPanel.Controls.Add(_chkAutoFollow);
             _topPanel.Controls.Add(_btnNormalize);
             _topPanel.Controls.Add(_btnFadeOut);
             _topPanel.Controls.Add(_btnFadeIn);
@@ -192,6 +194,21 @@ namespace MinimalSoundEditor
             _topPanel.Name = "_topPanel";
             _topPanel.Size = new Size(1184, 46);
             _topPanel.TabIndex = 2;
+            // 
+            // _chkAutoFollow
+            // 
+            _chkAutoFollow.Appearance = Appearance.Button;
+            _chkAutoFollow.BackgroundImage = Resource1.icon_follow_on;
+            _chkAutoFollow.BackgroundImageLayout = ImageLayout.Stretch;
+            _chkAutoFollow.FlatAppearance.BorderSize = 0;
+            _chkAutoFollow.FlatAppearance.CheckedBackColor = Color.MediumPurple;
+            _chkAutoFollow.FlatAppearance.MouseOverBackColor = Color.FromArgb(255, 192, 192);
+            _chkAutoFollow.FlatStyle = FlatStyle.Flat;
+            _chkAutoFollow.Location = new Point(316, 6);
+            _chkAutoFollow.Name = "_chkAutoFollow";
+            _chkAutoFollow.Size = new Size(32, 32);
+            _chkAutoFollow.TabIndex = 16;
+            _chkAutoFollow.UseVisualStyleBackColor = true;
             // 
             // _btnNormalize
             // 
@@ -552,5 +569,6 @@ namespace MinimalSoundEditor
         private ToolStripStatusLabel _lblRate;
         private ToolStripStatusLabel _lblChannels;
         private ToolStripStatusLabel _lblTotal;
+        private CheckBox _chkAutoFollow;
     }
 }
