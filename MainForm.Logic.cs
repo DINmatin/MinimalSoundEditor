@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text.Json;
+using System.Threading.Channels;
 using System.Windows.Forms;
 using static MinimalSoundEditor.MainForm;
 
@@ -77,6 +78,11 @@ namespace MinimalSoundEditor
         private bool _autoFollowEnabled = true;
 
         private string _currentFilePath;   // aktuell geladene Datei
+        
+        // Auto-Load-Feature
+        private string _lastLoadedFilePath;   // Pfad der zuletzt erfolgreich geladenen Datei
+        private bool _autoLoadLastFile = true; // intern: ob beim Start automatisch geladen werden soll
+
         private bool _isDirty;             // wurde editiert?
 
         private enum AudioExportFormat
@@ -741,8 +747,34 @@ namespace MinimalSoundEditor
             UpdatePlaybackTimerInterval();
 
             _currentFilePath = filePath;
+            _lastLoadedFilePath = filePath; // NEU: für Auto-Load merken
             _isDirty = false;
             UpdateWindowTitle();
+
+            // Settings inkl. LastFile direkt persistieren
+            SaveThemeSettings();
+
+            try
+            {
+                var fi = new FileInfo(filePath);
+
+                double seconds = 0;
+                if (_currentSamples != null && sampleRate > 0)
+                    seconds = (double)_currentSamples.Length / sampleRate;
+
+                string niceTime =
+                    seconds >= 60
+                    ? $"{(int)(seconds / 60)}:{(seconds % 60):00}"
+                    : $"{seconds:0.00}s";
+
+                _lblInfo.Text = fi.Name;
+//                    $"{fi.Name}   •   {niceTime}   •   {sampleRate} Hz   •   {(channels > 1 ? $"{channels} Channels" : "Mono")}";
+            }
+            catch
+            {
+                _lblInfo.Text = Path.GetFileName(filePath);
+            }
+            UpdateStatusBar();
         }
         private void UpdateWindowTitle()
         {
@@ -1426,12 +1458,20 @@ namespace MinimalSoundEditor
                 ["CurrentMode"] = _currentThemeMode.ToString()
             };
 
+            // NEU: zuletzt geladene Datei merken (falls vorhanden)
+            if (!string.IsNullOrEmpty(_lastLoadedFilePath))
+                data["LastFilePath"] = _lastLoadedFilePath;
+
+            // NEU: Auto-Load-Flag speichern
+            data["AutoLoadLastFile"] = _autoLoadLastFile ? "true" : "false";
+
             var json = JsonSerializer.Serialize(
                 data,
                 new JsonSerializerOptions { WriteIndented = true });
 
             File.WriteAllText(GetSettingsFilePath(), json);
         }
+
 
         private void LoadThemeSettings()
         {
@@ -1449,6 +1489,20 @@ namespace MinimalSoundEditor
                     Enum.TryParse<ThemeMode>(modeStr, out var mode))
                 {
                     _currentThemeMode = mode;
+                }
+
+                // NEU: zuletzt geladener Clip
+                if (data.TryGetValue("LastFilePath", out var lastPath) &&
+                    !string.IsNullOrWhiteSpace(lastPath))
+                {
+                    _lastLoadedFilePath = lastPath;
+                }
+
+                // NEU: Auto-Load-Flag (falls noch nicht gespeichert, bleibt Default = true)
+                if (data.TryGetValue("AutoLoadLastFile", out var autoStr) &&
+                    bool.TryParse(autoStr, out var auto))
+                {
+                    _autoLoadLastFile = auto;
                 }
             }
             catch
@@ -1528,6 +1582,32 @@ namespace MinimalSoundEditor
             SaveThemeDefaults(force: false);
         }
 
+        /// <summary>
+        /// Versucht beim Start, den zuletzt geladenen Clip automatisch zu öffnen.
+        /// Nervt nicht: macht nur was, wenn AutoLoad aktiviert ist,
+        /// ein Pfad vorhanden ist und die Datei noch existiert.
+        /// </summary>
+        private void TryAutoLoadLastFileOnStartup()
+        {
+            if (!_autoLoadLastFile)
+                return;
+
+            if (string.IsNullOrEmpty(_lastLoadedFilePath))
+                return;
+
+            if (!File.Exists(_lastLoadedFilePath))
+                return;
+
+            try
+            {
+                LoadAudioFile(_lastLoadedFilePath);
+            }
+            catch
+            {
+                // Keine Fehlermeldung beim Start – still fail,
+                // damit der User nicht genervt wird, falls das File kaputt ist.
+            }
+        }
 
         // ✅ jetzt statisch, damit wir sie aus SaveThemeDefaultsIfMissing() aufrufen können
         private static ThemeColorSet ThemeToColorSet(ThemeDefinition t)

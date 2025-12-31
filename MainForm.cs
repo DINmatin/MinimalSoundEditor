@@ -6,6 +6,7 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -85,6 +86,8 @@ namespace MinimalSoundEditor
                 Interval = 16 // ~60 FPS
             };
             _playbackTimer.Tick += PlaybackTimer_Tick;
+
+            TryAutoLoadLastFileOnStartup();
 
             // Form-Events
             this.FormClosing += MainForm_FormClosing;
@@ -219,7 +222,16 @@ namespace MinimalSoundEditor
                 _lblPos.Text = "Pos: -";
                 _lblSel.Text = "Sel: -";
                 _lblRate.Text = "SR: -";
-                _lblChannels.Text = "Channels: -";
+                if (_currentChannels <= 0)
+                    _lblChannels.Text = "Channels: -";
+                else if (_currentChannels == 1)
+                    _lblChannels.Text = "Mono";
+                else if (_currentChannels == 2)
+                    _lblChannels.Text = "Stereo";
+                else
+                    _lblChannels.Text = $"{_currentChannels} ch";
+                //_lblChannels.Text = "Channels: -";
+
                 _lblTotal.Text = "Len: -";
                 return;
             }
@@ -240,7 +252,7 @@ namespace MinimalSoundEditor
             }
 
             // Sample Rate
-            _lblRate.Text = $"SR: {_currentSampleRate} Hz";
+            _lblRate.Text = $"Rate: {_currentSampleRate} Hz";
 
             // Channels (1 = mono, 2 = stereo)
             // Channels
