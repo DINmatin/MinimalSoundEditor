@@ -401,47 +401,39 @@ namespace MinimalSoundEditor
         {
             if (t.Waveform == null) t.Waveform = new WaveformViewTheme();
             t.Mode = ThemeMode.Light;
-            t.FormBack = Color.WhiteSmoke;
-            t.ButtonBack = Color.WhiteSmoke;
-            t.ButtonFore = Color.Black;
-            t.ButtonBorder = Color.DarkGray;
 
-            t.Waveform.Background = Color.White;
-            t.Waveform.WaveColor = Color.ForestGreen;
-            t.Waveform.ZeroLineColor = Color.DarkGray;
-            t.Waveform.SelectionFillColor = Color.FromArgb(80, Color.Gold);
-            t.Waveform.SelectionEdgeColor = Color.Gold;
-            t.Waveform.PlayheadColor = Color.Red;
-            t.Waveform.TextColor = Color.Black;
+            t.FormBack = Color.FromArgb(0xF5, 0xF5, 0xF5);
+            t.ButtonBack = Color.FromArgb(0xF5, 0xF5, 0xF5);
+            t.ButtonFore = Color.FromArgb(0x00, 0x00, 0x00);
+            t.ButtonBorder = Color.FromArgb(0xA9, 0xA9, 0xA9);
+
+            t.Waveform.Background = Color.FromArgb(0xC8, 0xEC, 0xF7);
+            t.Waveform.WaveColor = Color.FromArgb(0x00, 0x80, 0xC0);
+            t.Waveform.ZeroLineColor = Color.FromArgb(0xA9, 0xA9, 0xA9);
+            t.Waveform.SelectionFillColor = Color.FromArgb(0xFF, 0xD7, 0x00);
+            t.Waveform.SelectionEdgeColor = Color.FromArgb(0xFF, 0xD7, 0x00);
+            t.Waveform.PlayheadColor = Color.FromArgb(0xFF, 0x00, 0x00);
+            t.Waveform.TextColor = Color.FromArgb(0x00, 0x00, 0x00);
         }
+
 
         internal static void SetDefaultDarkTheme(ThemeDefinition t)
         {
             if (t.Waveform == null) t.Waveform = new WaveformViewTheme();
             t.Mode = ThemeMode.Dark;
 
-            // Fensterhintergrund etwas heller als ganz schwarz
-            t.FormBack = Color.FromArgb(32, 32, 32);
-            t.ButtonBack = Color.FromArgb(55, 55, 55);
-            t.ButtonFore = Color.WhiteSmoke;
-            t.ButtonBorder = Color.DimGray;
+            t.FormBack = Color.FromArgb(0x20, 0x20, 0x20);
+            t.ButtonBack = Color.FromArgb(0x37, 0x37, 0x37);
+            t.ButtonFore = Color.FromArgb(0xF5, 0xF5, 0xF5);
+            t.ButtonBorder = Color.FromArgb(0x69, 0x69, 0x69);
 
-            t.Waveform.Background = Color.Black;
-
-            // Wellenfarbe ruhig knallig lassen
-            t.Waveform.WaveColor = Color.Lime;
-
-            // 0-Linie gut sichtbar
-            t.Waveform.ZeroLineColor = Color.Gray;
-
-            // Auswahl etwas kräftiger gelb
-            t.Waveform.SelectionFillColor = Color.FromArgb(110, Color.Yellow);
-            t.Waveform.SelectionEdgeColor = Color.Gold;
-
-            t.Waveform.PlayheadColor = Color.Red;
-
-            // 👇 Text richtig hell machen
-            t.Waveform.TextColor = Color.WhiteSmoke;
+            t.Waveform.Background = Color.FromArgb(0x00, 0x00, 0x00);
+            t.Waveform.WaveColor = Color.FromArgb(0x00, 0x80, 0x80);
+            t.Waveform.ZeroLineColor = Color.FromArgb(0x80, 0x80, 0x80);
+            t.Waveform.SelectionFillColor = Color.FromArgb(0xFF, 0xFF, 0x00);
+            t.Waveform.SelectionEdgeColor = Color.FromArgb(0xFF, 0xD7, 0x00);
+            t.Waveform.PlayheadColor = Color.FromArgb(0xFF, 0x00, 0x00);
+            t.Waveform.TextColor = Color.FromArgb(0xF5, 0xF5, 0xF5);
         }
 
 
