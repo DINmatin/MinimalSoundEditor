@@ -716,18 +716,28 @@ namespace MinimalSoundEditor
 
             if (hasLoopSelection)
             {
-                // Loop von aktueller Selektion
+                // Startposition ist normalerweise der aktuelle Playhead
+                int startPos = _playbackSamplePosition;
+
+                // Wenn der Playhead komplett außerhalb der Loop liegt,
+                // schnappen wir ihn EINMALIG an den Loop-Anfang.
+                if (startPos < loopStart || startPos >= loopEnd)
+                {
+                    startPos = loopStart;
+                }
+
+                // Loop von aktueller Selektion, Start bei startPos
                 _currentProvider = new LoopingArraySampleProvider(
                     _currentSamples,
                     _currentSampleRate,
                     1,
                     loopStart,
-                    loopEnd);
+                    loopEnd,
+                    startPos);
 
-                // Playhead am Loop-Anfang
-                _playbackSamplePosition = loopStart;
-                _overviewView.PlaybackSample = _playbackSamplePosition;
-                _detailView.PlaybackSample = _playbackSamplePosition;
+                // WICHTIG: Kein explizites Zurücksetzen von _playbackSamplePosition mehr.
+                // Während des Abspielens übernimmt der PlaybackTimer die Aktualisierung
+                // aus _currentProvider.PositionSamples.
             }
             else
             {
@@ -738,6 +748,7 @@ namespace MinimalSoundEditor
                     1,
                     _playbackSamplePosition);
             }
+
 
 
             _waveOut.Init(_currentProvider);

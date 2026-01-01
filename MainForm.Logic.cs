@@ -2088,7 +2088,13 @@ namespace MinimalSoundEditor
             private readonly int _loopEnd; // exklusiv
             private int _position;
 
-            public LoopingArraySampleProvider(float[] buffer, int sampleRate, int channels, int loopStartSample, int loopEndSample)
+            public LoopingArraySampleProvider(
+                float[] buffer,
+                int sampleRate,
+                int channels,
+                int loopStartSample,
+                int loopEndSample,
+                int? startSample = null)
             {
                 _buffer = buffer ?? Array.Empty<float>();
 
@@ -2105,7 +2111,19 @@ namespace MinimalSoundEditor
                 _loopStart = loopStartSample;
                 _loopEnd = loopEndSample;
 
-                _position = _loopStart;
+                // Startposition: entweder explizit übergeben oder Loop-Anfang
+                int initialPos;
+                if (startSample.HasValue)
+                {
+                    // innerhalb des Loops einklemmen
+                    initialPos = Math.Max(_loopStart, Math.Min(startSample.Value, _loopEnd - 1));
+                }
+                else
+                {
+                    initialPos = _loopStart;
+                }
+
+                _position = initialPos;
 
                 WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
             }
@@ -2142,9 +2160,8 @@ namespace MinimalSoundEditor
 
                 return written;
             }
-
-
         }
+
 
     }
 }
