@@ -48,6 +48,8 @@ namespace MinimalSoundEditor
         private int _moveSelectionOffsetSamples;
         private int _moveSelectionLengthSamples;
 
+        public int LastDeletedStartSample { get; private set; }
+        public int LastDeletedSampleCount { get; private set; }
         private enum DragMode
         {
             None,
@@ -1498,6 +1500,10 @@ namespace MinimalSoundEditor
         /// </summary>
         public void DeleteSelection()
         {
+
+            // ✅ reset "last delete" info
+            LastDeletedStartSample = 0;
+            LastDeletedSampleCount = 0;
             if (_samples == null || _samples.Length == 0 || !HasSelection)
                 return;
 
@@ -1507,6 +1513,10 @@ namespace MinimalSoundEditor
                 return;
 
             int cutLength = end - start;
+            // ✅ remember what got removed (important for video offset)
+            LastDeletedStartSample = start;
+            LastDeletedSampleCount = cutLength;
+
             int newLength = totalSamples - cutLength;
             if (newLength <= 0)
             {

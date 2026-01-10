@@ -27,6 +27,9 @@ namespace MinimalSoundEditor
 
         public const int SelectionFillAlpha = 110; // oder 80, wie du magst
 
+        private double _videoTimeOffsetSeconds = 0.0;
+
+
         public enum ThemeMode
         {
             Light,
@@ -1080,8 +1083,10 @@ namespace MinimalSoundEditor
 
             _lastVideoSyncUtc = now;
 
-            double seconds = GetLocatorSeconds();
+            double seconds = GetLocatorSeconds() + _videoTimeOffsetSeconds;
+            if (seconds < 0) seconds = 0;
             _videoPreview.SetTime(seconds);
+
         }
 
         private void NormalizeSelection()

@@ -776,6 +776,8 @@ namespace MinimalSoundEditor
         {
             _currentVideoPath = mp4Path;
 
+            _videoTimeOffsetSeconds = 0.0;
+
             // Audio aus MP4 laden
             LoadAudioFile(mp4Path);
 
@@ -810,6 +812,8 @@ namespace MinimalSoundEditor
             // forget video
             _currentVideoPath = null;
 
+            _videoTimeOffsetSeconds = 0.0;
+            
             // close preview window if it exists
             if (_videoPreview != null)
             {
@@ -841,6 +845,16 @@ namespace MinimalSoundEditor
 
             // Nur im Detail-Track löschen
             _detailView.DeleteSelection();
+            _playbackSamplePosition = _detailView.PlaybackSample;
+
+            // ✅ Wenn am Anfang geschnitten wurde: Video-Offset erhöhen
+            if (!string.IsNullOrEmpty(_currentVideoPath) &&
+                _detailView.LastDeletedStartSample == 0 &&
+                _detailView.LastDeletedSampleCount > 0 &&
+                _currentSampleRate > 0)
+            {
+                _videoTimeOffsetSeconds += _detailView.LastDeletedSampleCount / (double)_currentSampleRate;
+            }
 
             // Loop-Bereich ungültig, weil sich die Samples verschoben haben
             _chkLoop.Checked = false;
@@ -864,7 +878,7 @@ namespace MinimalSoundEditor
 
             UpdateInfo(_currentSampleRate, _currentSamples.Length);
             UpdatePlaybackTimerInterval();
-
+            SyncVideoPreview(force: true);
             _isDirty = true;
             UpdateWindowTitle();
         }
@@ -1726,6 +1740,14 @@ namespace MinimalSoundEditor
             }
 
             _videoPreview.Location = new Point(x, y);
+        }
+        private void ResyncVideoAfterAudioEdit()
+        {
+            if (_videoPreview == null || _videoPreview.IsDisposed) return;
+            if (string.IsNullOrEmpty(_currentVideoPath)) return;
+
+            // Force: Video exakt auf aktuelle Locator-Position setzen
+            SyncVideoPreview(force: true);
         }
 
 
