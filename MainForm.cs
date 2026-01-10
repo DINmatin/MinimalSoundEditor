@@ -282,6 +282,11 @@ namespace MinimalSoundEditor
 
             // Optional: Dateityp einschränken
             string ext = Path.GetExtension(file).ToLowerInvariant();
+            if (ext == ".mp4")
+            {
+                OpenVideoFile(file);   // ✅ lädt Audio + setzt _currentVideoPath + öffnet Preview + initial sync
+                return;
+            }
             if (ext != ".wav" && ext != ".mp3" && ext != ".flac" && ext != ".aiff" && ext != ".aif" && ext != ".mp4")
             {
                 MessageBox.Show(this,
@@ -291,11 +296,7 @@ namespace MinimalSoundEditor
                     MessageBoxIcon.Information);
                 return;
             }
-            if (ext == ".mp4")
-            {
-                OpenVideoPreview(file);
-                return;
-            }
+           
             // 1) Ungespeicherte Änderungen?
             if (!CheckUnsavedChangesBeforeOpen(file))
                 return;
@@ -325,9 +326,13 @@ namespace MinimalSoundEditor
             }
         }
         private VideoRenderForm _videoPreview; // oben als Feld in MainForm (einmalig hinzufügen)
+        private string _currentVideoPath;
+        private DateTime _lastVideoSyncUtc = DateTime.MinValue;
+        private const int VideoSyncMinIntervalMs = 120; 
 
         private void OpenVideoPreview(string file)
         {
+            _currentVideoPath = file; // ✅ damit SyncVideoPreview nicht sofort aussteigt
             // falls schon offen: schließen
             if (_videoPreview != null && !_videoPreview.IsDisposed)
             {
@@ -722,6 +727,13 @@ namespace MinimalSoundEditor
 
             try
             {
+                string ext = Path.GetExtension(ofd.FileName).ToLowerInvariant();
+                if (ext == ".mp4")
+                {
+                    OpenVideoFile(ofd.FileName);
+                    return;
+                }
+
                 LoadAudioFile(ofd.FileName);
                 _lblInfo.Text = ofd.FileName;
             }
@@ -734,6 +746,28 @@ namespace MinimalSoundEditor
                     MessageBoxIcon.Error);
             }
         }
+        private void OpenVideoFile(string mp4Path)
+        {
+            _currentVideoPath = mp4Path;
+
+            // Audio-Track aus MP4 wie gewohnt laden (NAudio AudioFileReader)
+            LoadAudioFile(mp4Path);
+
+            // Preview-Fenster modeless öffnen (blockiert MainForm nicht)
+            if (_videoPreview != null && !_videoPreview.IsDisposed)
+            {
+                _videoPreview.Close();
+                _videoPreview = null;
+            }
+
+            _videoPreview = new VideoRenderForm(mp4Path, GetLocatorSeconds());
+            _videoPreview.Show(this);
+            _videoPreview.BringToFront();
+
+            // sofort einmal syncen
+            SyncVideoPreview(force: true);
+        }
+
 
         private void BtnDeleteSelection_Click(object sender, EventArgs e)
         {

@@ -1015,7 +1015,7 @@ namespace MinimalSoundEditor
             _playbackSamplePosition = pos;
             _overviewView.PlaybackSample = pos;
             _detailView.PlaybackSample = pos;
-
+            SyncVideoPreview(force: false);
             // Auto-Follow: DetailView so scrollen, dass der Playhead im Fenster bleibt
             if (_autoFollowEnabled)
             {
@@ -1059,8 +1059,26 @@ namespace MinimalSoundEditor
         {
             // nutzt jetzt denselben Weg wie Tastatur-Sprünge
             JumpToSample(sampleIndex, restartIfPlaying: true);
+            SyncVideoPreview(force: true);
         }
-       
+        private void SyncVideoPreview(bool force)
+        {
+            if (_videoPreview == null || _videoPreview.IsDisposed) return;
+            if (string.IsNullOrEmpty(_currentVideoPath)) return;
+
+            var now = DateTime.UtcNow;
+            if (!force)
+            {
+                double ms = (now - _lastVideoSyncUtc).TotalMilliseconds;
+                if (ms < VideoSyncMinIntervalMs) return;
+            }
+
+            _lastVideoSyncUtc = now;
+
+            double seconds = GetLocatorSeconds();
+            _videoPreview.SetTime(seconds);
+        }
+
         private void NormalizeSelection()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)

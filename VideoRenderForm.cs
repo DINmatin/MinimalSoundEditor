@@ -10,6 +10,9 @@ public class VideoRenderForm : Form
     private readonly double _seconds;
     private readonly PictureBox _pb;
 
+    private double _targetSeconds;
+    private System.Windows.Forms.Timer _debounce;
+    private CancellationTokenSource _renderCts;
     public VideoRenderForm(string videoPath, double seconds)
     {
         _videoPath = videoPath;
@@ -26,11 +29,76 @@ public class VideoRenderForm : Form
             BackColor = Color.Black
         };
         Controls.Add(_pb);
+        _debounce = new System.Windows.Forms.Timer();
+        _debounce.Interval = 150; // Debounce: nicht bei jedem Tick sofort ffmpeg
+        _debounce.Tick += async (_, __) =>
+        {
+            _debounce.Stop();
+            await RenderFrameAsync();
+        };
 
         Shown += async (_, __) => await LoadFrameAsync();
 
         FormClosed += VideoRenderForm_FormClosed;
     }
+    public void SetTime(double seconds)
+    {
+        if (seconds < 0) seconds = 0;
+
+        // Kleine Änderungen ignorieren (reduziert ffmpeg Calls)
+        if (Math.Abs(seconds - _targetSeconds) < 0.05)
+            return;
+
+        _targetSeconds = seconds;
+
+        // debounce neu starten
+        _debounce.Stop();
+        _debounce.Start();
+    }
+    private async Task RenderFrameAsync()
+    {
+        try
+        {
+            // laufendes Render abbrechen
+            _renderCts?.Cancel();
+            _renderCts?.Dispose();
+            _renderCts = new CancellationTokenSource();
+            var ct = _renderCts.Token;
+
+            UseWaitCursor = true;
+            Text = "Video Preview (lädt...)";
+
+            string imgPath = await Task.Run(() =>
+            {
+                ct.ThrowIfCancellationRequested();
+                return ExtractFrameToTempPng(_videoPath, _targetSeconds);
+            }, ct);
+
+            if (ct.IsCancellationRequested)
+                return;
+
+            _pb.Image?.Dispose();
+            _pb.Image = Image.FromFile(imgPath);
+            _pb.Tag = imgPath;
+
+            Text = "Video Preview";
+        }
+        catch (OperationCanceledException)
+        {
+            // ok
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Video Preview Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Text = "Video Preview";
+        }
+        finally
+        {
+            UseWaitCursor = false;
+        }
+    }
+
     private async Task LoadFrameAsync()
     {
         try
@@ -108,7 +176,7 @@ public class VideoRenderForm : Form
         string ss = seconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         string args =
-     $"-hide_banner -loglevel error -nostdin -y -ss {ss} -i \"{videoPath}\" -frames:v 1 \"{outPng}\"";
+     $"-hide_banner -loglevel error -nostdin -y -ss {ss} -i \"{videoPath}\" -frames:v 1 -vf scale=960:-1 \"{outPng}\"";
 
 
         var psi = new ProcessStartInfo
@@ -135,8 +203,7 @@ public class VideoRenderForm : Form
 
         if (p.ExitCode != 0 || !File.Exists(outPng))
         {
-            string err = p.StandardError.ReadToEnd();
-            throw new Exception("ffmpeg failed:\n" + err);
+            throw new Exception("ffmpeg failed. ExitCode=" + p.ExitCode);
         }
 
         return outPng;
