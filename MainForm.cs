@@ -291,7 +291,11 @@ namespace MinimalSoundEditor
                     MessageBoxIcon.Information);
                 return;
             }
-
+            if (ext == ".mp4")
+            {
+                OpenVideoPreview(file);
+                return;
+            }
             // 1) Ungespeicherte Änderungen?
             if (!CheckUnsavedChangesBeforeOpen(file))
                 return;
@@ -320,6 +324,35 @@ namespace MinimalSoundEditor
                     MessageBoxIcon.Error);
             }
         }
+        private VideoRenderForm _videoPreview; // oben als Feld in MainForm (einmalig hinzufügen)
+
+        private void OpenVideoPreview(string file)
+        {
+            // falls schon offen: schließen
+            if (_videoPreview != null && !_videoPreview.IsDisposed)
+            {
+                _videoPreview.Close();
+                _videoPreview = null;
+            }
+
+            _videoPreview = new VideoRenderForm(file, GetLocatorSeconds());
+            _videoPreview.Show(this);   // ✅ modeless (blockiert MainForm NICHT)
+            _videoPreview.BringToFront();
+        }
+
+
+        private double GetLocatorSeconds()
+        {
+            // Locator in Samples -> Sekunden
+            // Falls du _currentSampleRate nur für Audio hast:
+            // Für Video nehmen wir erstmal 30fps Default? Besser: später via ffprobe auslesen.
+            // ABER: wenn du beim Video gar keinen Audio-Clip geladen hast, brauchst du eine andere Zeitquelle.
+            // Minimal-Variante: wenn Locator immer in Samples (Audio-Rate) basiert:
+            return (_playbackSamplePosition <= 0 || _currentSampleRate <= 0)
+                ? 0.0
+                : _playbackSamplePosition / (double)_currentSampleRate;
+        }
+
         private bool CheckUnsavedChangesBeforeOpen(string newFilePath)
         {
             // Wenn nichts geladen oder nichts geändert wurde -> kein Dialog
