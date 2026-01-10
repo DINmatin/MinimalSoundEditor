@@ -287,6 +287,10 @@ namespace MinimalSoundEditor
             {
                 if (c is Button btn)
                 {
+                    // ❗ VideoPreview-Button NICHT vom Theme überschreiben
+                    if (btn == _btnVideoPreview)
+                        continue;
+
                     btn.FlatStyle = FlatStyle.Flat;
                     btn.ForeColor = theme.ButtonFore;
 
@@ -633,6 +637,7 @@ namespace MinimalSoundEditor
         private void MainForm_Resize(object sender, EventArgs e)
         {
             UpdatePlaybackTimerInterval();
+            PositionVideoPreviewBottomLeft(); // ✅ keep it docked
         }
 
         void MainForm_FormClosing(object sender, FormClosingEventArgs e)

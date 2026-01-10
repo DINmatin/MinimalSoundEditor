@@ -44,6 +44,7 @@ namespace MinimalSoundEditor
             miViewZoomAll = new ToolStripMenuItem();
             aboutToolStripMenuItem = new ToolStripMenuItem();
             _topPanel = new Panel();
+            _btnVideoPreview = new Button();
             _chkAutoFollow = new CheckBox();
             _btnNormalize = new Button();
             _btnFadeOut = new Button();
@@ -180,6 +181,7 @@ namespace MinimalSoundEditor
             // 
             // _topPanel
             // 
+            _topPanel.Controls.Add(_btnVideoPreview);
             _topPanel.Controls.Add(_chkAutoFollow);
             _topPanel.Controls.Add(_btnNormalize);
             _topPanel.Controls.Add(_btnFadeOut);
@@ -202,6 +204,19 @@ namespace MinimalSoundEditor
             _topPanel.Name = "_topPanel";
             _topPanel.Size = new Size(1184, 46);
             _topPanel.TabIndex = 2;
+            // 
+            // _btnVideoPreview
+            // 
+            _btnVideoPreview.BackgroundImage = Resource1.icon_videoPreview;
+            _btnVideoPreview.BackgroundImageLayout = ImageLayout.Stretch;
+            _btnVideoPreview.FlatAppearance.BorderSize = 0;
+            _btnVideoPreview.FlatStyle = FlatStyle.Flat;
+            _btnVideoPreview.Location = new Point(171, 8);
+            _btnVideoPreview.Name = "_btnVideoPreview";
+            _btnVideoPreview.Size = new Size(32, 32);
+            _btnVideoPreview.TabIndex = 17;
+            _btnVideoPreview.UseVisualStyleBackColor = true;
+            _btnVideoPreview.Click += _btnVideoPreview_Click;
             // 
             // _chkAutoFollow
             // 
@@ -579,5 +594,6 @@ namespace MinimalSoundEditor
         private ToolStripStatusLabel _lblTotal;
         private CheckBox _chkAutoFollow;
         private ToolStripMenuItem aboutToolStripMenuItem;
+        private Button _btnVideoPreview;
     }
 }

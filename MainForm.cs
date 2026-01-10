@@ -23,6 +23,10 @@ namespace MinimalSoundEditor
         private const int MaxRecentFiles = 8;
         private readonly List<string> _recentFiles = new();
 
+        private VideoRenderForm? _videoPreview;
+        private string? _currentVideoPath;
+        private ToolStripButton? _btnOpenPreview;
+
         public MainForm()
         {
             // 1) Designer-Init
@@ -44,6 +48,7 @@ namespace MinimalSoundEditor
             _overviewView.DragDrop += MainForm_DragDrop;
             _detailView.DragEnter += MainForm_DragEnter;
             _detailView.DragDrop += MainForm_DragDrop;
+
 
             // === OVERVIEW (oben, klein) ===
             _overviewView.PlaybackPositionChangedByClick += Waveform_PlaybackPositionChangedByClick;
@@ -131,6 +136,7 @@ namespace MinimalSoundEditor
             MakeToolbarButtonLookFlat(_btnCompress);
             MakeToolbarButtonLookFlat(_btnFadeIn);
             MakeToolbarButtonLookFlat(_btnFadeOut);
+            MakeToolbarButtonLookFlat(_btnVideoPreview);
             MakeLoopButtonLookFlat(_chkLoop);
 
             // Hover Zoom für Toolbar Buttons
@@ -149,6 +155,24 @@ namespace MinimalSoundEditor
             EnableHoverZoom(_btnFadeIn);
             EnableHoverZoom(_btnFadeOut);
             EnableHoverZoom(_chkLoop);
+            EnableHoverZoom(_btnVideoPreview);
+
+            InitVideoPreviewButton();
+            this.Move += (_, __) => PositionVideoPreviewBottomLeft();
+            this.Resize += (_, __) => PositionVideoPreviewBottomLeft(); // you already have Resize hooked; add inside handler too if preferred
+
+        }
+        private void InitVideoPreviewButton()
+        {
+            _btnVideoPreview.BackgroundImage = Resource1.icon_videoPreview; // oder eigenes Preview-Icon
+            _btnVideoPreview.BackgroundImageLayout = ImageLayout.Stretch;
+            _btnVideoPreview.FlatStyle = FlatStyle.Flat;
+            _btnVideoPreview.FlatAppearance.BorderSize = 0;
+            _btnVideoPreview.TabStop = false;
+            _btnVideoPreview.Enabled = false;
+
+            MakeToolbarButtonLookFlat(_btnVideoPreview);
+            EnableHoverZoom(_btnVideoPreview);
         }
 
         private void InitDetailContextMenu()
@@ -296,7 +320,7 @@ namespace MinimalSoundEditor
                     MessageBoxIcon.Information);
                 return;
             }
-           
+
             // 1) Ungespeicherte Änderungen?
             if (!CheckUnsavedChangesBeforeOpen(file))
                 return;
@@ -313,6 +337,7 @@ namespace MinimalSoundEditor
 
             try
             {
+                ClearVideoState();
                 LoadAudioFile(file);
                 UpdateStatusBar();
             }
@@ -325,10 +350,9 @@ namespace MinimalSoundEditor
                     MessageBoxIcon.Error);
             }
         }
-        private VideoRenderForm _videoPreview; // oben als Feld in MainForm (einmalig hinzufügen)
-        private string _currentVideoPath;
+
         private DateTime _lastVideoSyncUtc = DateTime.MinValue;
-        private const int VideoSyncMinIntervalMs = 120; 
+        private const int VideoSyncMinIntervalMs = 120;
 
         private void OpenVideoPreview(string file)
         {
@@ -731,10 +755,12 @@ namespace MinimalSoundEditor
                 if (ext == ".mp4")
                 {
                     OpenVideoFile(ofd.FileName);
-                    return;
                 }
-
-                LoadAudioFile(ofd.FileName);
+                else
+                {
+                    ClearVideoState();   // ✅ IMPORTANT
+                    LoadAudioFile(ofd.FileName);
+                }
                 _lblInfo.Text = ofd.FileName;
             }
             catch (Exception ex)
@@ -750,23 +776,59 @@ namespace MinimalSoundEditor
         {
             _currentVideoPath = mp4Path;
 
-            // Audio-Track aus MP4 wie gewohnt laden (NAudio AudioFileReader)
+            // Audio aus MP4 laden
             LoadAudioFile(mp4Path);
 
-            // Preview-Fenster modeless öffnen (blockiert MainForm nicht)
+            // altes Preview schließen, damit es sicher das neue Video nimmt
             if (_videoPreview != null && !_videoPreview.IsDisposed)
             {
                 _videoPreview.Close();
                 _videoPreview = null;
             }
 
-            _videoPreview = new VideoRenderForm(mp4Path, GetLocatorSeconds());
-            _videoPreview.Show(this);
-            _videoPreview.BringToFront();
+            // Preview öffnen / fokussieren (erstellt Form falls nötig)
+            OpenOrFocusVideoPreview();
 
             // sofort einmal syncen
             SyncVideoPreview(force: true);
+
+            UpdateOpenPreviewButtonVisibility();
         }
+
+        private void UpdateOpenPreviewButtonVisibility()
+        {
+            bool isVideo =
+                !string.IsNullOrEmpty(_currentVideoPath) &&
+                Path.GetExtension(_currentVideoPath)
+                    .Equals(".mp4", StringComparison.OrdinalIgnoreCase);
+
+            _btnVideoPreview.Enabled = isVideo;
+        }
+
+        private void ClearVideoState()
+        {
+            // forget video
+            _currentVideoPath = null;
+
+            // close preview window if it exists
+            if (_videoPreview != null)
+            {
+                try
+                {
+                    if (!_videoPreview.IsDisposed)
+                        _videoPreview.Close();
+                }
+                catch
+                {
+                    // ignore – form might already be disposing
+                }
+
+                _videoPreview = null;
+            }
+
+            UpdateOpenPreviewButtonVisibility();
+        }
+
 
 
         private void BtnDeleteSelection_Click(object sender, EventArgs e)
@@ -917,7 +979,7 @@ namespace MinimalSoundEditor
         // Tastatur-Shortcuts
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-           
+
             // CTRL+T -> Theme-Settings
             if (keyData == (Keys.Control | Keys.T))
             {
@@ -995,7 +1057,7 @@ namespace MinimalSoundEditor
                 return true;
             }
 
-           
+
             // CTRL+N -> Bereich normalisieren
             if (keyData == (Keys.Control | Keys.N))
             {
@@ -1003,7 +1065,7 @@ namespace MinimalSoundEditor
                 return true;
             }
 
-           
+
             // CTRL+A -> Alles selektieren
             if (keyData == (Keys.Control | Keys.A))
             {
@@ -1591,5 +1653,81 @@ namespace MinimalSoundEditor
         {
             NormalizeSelection();
         }
+
+        private void _btnVideoPreview_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(_currentVideoPath) || !File.Exists(_currentVideoPath))
+                return;
+
+            OpenOrFocusVideoPreview();
+        }
+        private void OpenOrFocusVideoPreview()
+        {
+            if (string.IsNullOrEmpty(_currentVideoPath) || !File.Exists(_currentVideoPath))
+                return;
+
+            // Falls schon offen: nur nach vorn holen + neu positionieren
+            if (_videoPreview != null && !_videoPreview.IsDisposed)
+            {
+                PositionVideoPreviewBottomLeft();
+                _videoPreview.BringToFront();
+                _videoPreview.Focus();
+                return;
+            }
+
+            // Neu erstellen
+            _videoPreview = new VideoRenderForm(_currentVideoPath, GetLocatorSeconds());
+            _videoPreview.FormClosed += VideoPreview_FormClosed;
+
+            _videoPreview.Show(this);
+            PositionVideoPreviewBottomLeft();
+
+            UpdateOpenPreviewButtonVisibility();
+        }
+
+        private void VideoPreview_FormClosed(object? sender, FormClosedEventArgs e)
+        {
+            if (_videoPreview != null)
+                _videoPreview.FormClosed -= VideoPreview_FormClosed;
+
+            _videoPreview = null;
+            UpdateOpenPreviewButtonVisibility();
+        }
+        void PositionVideoPreviewBottomLeft()
+        {
+            if (_videoPreview == null || _videoPreview.IsDisposed) return;
+
+            _videoPreview.StartPosition = FormStartPosition.Manual;
+
+            // Mindestgröße
+            if (_videoPreview.Width < 420) _videoPreview.Width = 420;
+            if (_videoPreview.Height < 260) _videoPreview.Height = 260;
+
+            const int gap = 6; // kleiner Abstand unterhalb des MainForms
+
+            // ⬅️ X: exakt an der linken Kante des MainForms (ohne extra margin)
+            int x = this.Left;
+
+            // ⬇️ Y: direkt UNTERHALB der MainForm (nicht innerhalb)
+            int y = this.Bottom + gap;
+
+            // Bildschirmgrenzen beachten (Taskbar-safe)
+            var wa = Screen.FromControl(this).WorkingArea;
+
+            // X clamp (falls MainForm teils außerhalb)
+            x = Math.Max(wa.Left, Math.Min(x, wa.Right - _videoPreview.Width));
+
+            // Wenn unten nicht genug Platz: versuche oberhalb des MainForms zu parken
+            if (y + _videoPreview.Height > wa.Bottom)
+            {
+                int above = this.Top - _videoPreview.Height - gap;
+                if (above >= wa.Top) y = above;
+                else y = wa.Bottom - _videoPreview.Height; // last resort
+            }
+
+            _videoPreview.Location = new Point(x, y);
+        }
+
+
     }
 }
