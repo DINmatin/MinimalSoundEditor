@@ -611,7 +611,7 @@ namespace MinimalSoundEditor
         {
             using var ofd = new OpenFileDialog
             {
-                Filter = "Audio-Dateien|*.wav;*.mp3;*.flac;*.aiff;*.wma;*.m4a|Alle Dateien|*.*",
+                Filter = "Audio-Dateien|*.wav;*.mp3;*.flac;*.aiff;*.wma;*.m4a;*.mp4|Alle Dateien|*.*",
                 Title = "Audiodatei öffnen"
             };
 
