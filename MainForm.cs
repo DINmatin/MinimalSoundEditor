@@ -241,7 +241,7 @@ namespace MinimalSoundEditor
         }
         private static readonly string[] _supportedAudioExtensions =
 {
-    ".wav", ".mp3", ".flac", ".aiff", ".wma", ".m4a", ".aac"
+    ".wav", ".mp3", ".flac", ".aiff", ".wma", ".m4a", ".aac", ".mp4"
 };
 
         private void MainForm_DragEnter(object sender, DragEventArgs e)
@@ -280,6 +280,32 @@ namespace MinimalSoundEditor
             if (!File.Exists(file))
                 return;
 
+            // Optional: Dateityp einschränken
+            string ext = Path.GetExtension(file).ToLowerInvariant();
+            if (ext != ".wav" && ext != ".mp3" && ext != ".flac" && ext != ".aiff" && ext != ".aif" && ext != ".mp4")
+            {
+                MessageBox.Show(this,
+                    "Dieses Dateiformat wird nicht unterstützt:\n" + file,
+                    "Datei nicht unterstützt",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            // 1) Ungespeicherte Änderungen?
+            if (!CheckUnsavedChangesBeforeOpen(file))
+                return;
+
+            // 2) Sicherheitsabfrage: wirklich öffnen?
+            var res = MessageBox.Show(this,
+                "Datei öffnen?\n\n" + file + "\n\n(Der aktuelle Clip wird ersetzt.)",
+                "Datei öffnen",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (res != DialogResult.Yes)
+                return;
+
             try
             {
                 LoadAudioFile(file);
@@ -294,6 +320,49 @@ namespace MinimalSoundEditor
                     MessageBoxIcon.Error);
             }
         }
+        private bool CheckUnsavedChangesBeforeOpen(string newFilePath)
+        {
+            // Wenn nichts geladen oder nichts geändert wurde -> kein Dialog
+            if (_currentSamples == null || _currentSamples.Length == 0 || !_isDirty)
+                return true;
+
+            string currentName = string.IsNullOrEmpty(_currentFilePath)
+                ? "unbenannter Clip"
+                : Path.GetFileName(_currentFilePath);
+
+            string newName = Path.GetFileName(newFilePath);
+
+            var result = MessageBox.Show(
+                this,
+                $"Du hast ungespeicherte Änderungen an \"{currentName}\".\n\n" +
+                $"Möchtest du vor dem Öffnen von \"{newName}\" speichern?",
+                "Änderungen speichern?",
+                MessageBoxButtons.YesNoCancel,
+                MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button1);
+
+            if (result == DialogResult.Cancel)
+                return false;
+
+            if (result == DialogResult.No)
+                return true;
+
+            // Yes -> speichern
+            bool wasDirty = _isDirty;
+
+            bool needSaveAs =
+                string.IsNullOrEmpty(_currentFilePath) ||
+                !_currentFilePath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase);
+
+            SaveCurrentFile(needSaveAs);
+
+            // Wenn danach noch dirty -> Save abgebrochen
+            if (wasDirty && _isDirty)
+                return false;
+
+            return true;
+        }
+
 
         private void UpdateStatusBar()
         {
