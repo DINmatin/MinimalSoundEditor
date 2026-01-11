@@ -13,6 +13,10 @@ public class VideoRenderForm : Form
     private double _targetSeconds;
     private System.Windows.Forms.Timer _debounce;
     private CancellationTokenSource _renderCts;
+
+    private bool _suppressLoadingTitleDuringPlayback = false; // default: bei manuellen Seeks darf "(lädt...)" erscheinen
+
+
     public VideoRenderForm(string videoPath, double seconds)
     {
         _videoPath = videoPath;
@@ -42,7 +46,13 @@ public class VideoRenderForm : Form
         FormClosed += VideoRenderForm_FormClosed;
     }
     public void SetTime(double seconds)
+     => SetTime(seconds, isPlaybackTick: false);
+
+    public void SetTime(double seconds, bool isPlaybackTick)
     {
+        // MainForm sagt uns explizit, ob das gerade Playback ist
+        _suppressLoadingTitleDuringPlayback = isPlaybackTick;
+
         if (seconds < 0) seconds = 0;
 
         // Kleine Änderungen ignorieren (reduziert ffmpeg Calls)
@@ -55,6 +65,8 @@ public class VideoRenderForm : Form
         _debounce.Stop();
         _debounce.Start();
     }
+
+
     private async Task RenderFrameAsync()
     {
         try
@@ -66,7 +78,9 @@ public class VideoRenderForm : Form
             var ct = _renderCts.Token;
 
             UseWaitCursor = true;
-            Text = "Video Preview (lädt...)";
+            if (!_suppressLoadingTitleDuringPlayback)
+                Text = "Video Preview (lädt...)";
+
 
             string imgPath = await Task.Run(() =>
             {

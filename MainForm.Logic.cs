@@ -1079,9 +1079,11 @@ namespace MinimalSoundEditor
 
             _lastVideoSyncUtc = now;
 
-            double seconds = GetLocatorSeconds() + _videoTimeOffsetSeconds;
-            if (seconds < 0) seconds = 0;
-            _videoPreview.SetTime(seconds);
+            double seconds = GetLocatorSeconds();
+
+            bool isPlaying = _waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing;
+            _videoPreview.SetTime(seconds, isPlaybackTick: isPlaying);
+
 
         }
 
