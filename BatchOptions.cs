@@ -4,6 +4,7 @@ namespace MinimalSoundEditor
        bool normalize,
     bool trimSilence,
     bool outputWav,
-    bool outputMp4
+    bool outputMp4,
+    bool uniqueFilename
     );
 }

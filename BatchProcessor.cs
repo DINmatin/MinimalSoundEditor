@@ -47,6 +47,7 @@ namespace MinimalSoundEditor
             if (opt.outputWav)
             {
                 string outWav = MakeOutputPath(inputPath, "_edited", ".wav");
+                if (opt.uniqueFilename) outWav = EnsureUniquePath(outWav);
                 await AudioIo.SaveWavAsync(outWav, samples, sampleRate, ct).ConfigureAwait(false);
                 log($"Saved WAV: {Path.GetFileName(outWav)}");
             }
@@ -62,6 +63,7 @@ namespace MinimalSoundEditor
                 else
                 {
                     string outMp4 = MakeOutputPath(inputPath, "_edited", ".mp4");
+                    if (opt.uniqueFilename) outMp4 = EnsureUniquePath(outMp4);
                     await VideoMuxer.SaveMp4WithNewAudioAsync(
                         inputMp4Path: inputPath,
                         outputMp4Path: outMp4,
@@ -77,7 +79,24 @@ namespace MinimalSoundEditor
 
 
         }
+        private static string EnsureUniquePath(string path)
+        {
+            if (!File.Exists(path))
+                return path;
 
+            string dir = Path.GetDirectoryName(path)!;
+            string name = Path.GetFileNameWithoutExtension(path);
+            string ext = Path.GetExtension(path);
+
+            for (int i = 1; i < 10000; i++)
+            {
+                string candidate = Path.Combine(dir, $"{name}_{i}{ext}");
+                if (!File.Exists(candidate))
+                    return candidate;
+            }
+
+            throw new IOException("Could not create a unique filename for: " + path);
+        }
         private static string MakeOutputPath(string inputPath, string suffix, string ext)
         {
             string dir = Path.GetDirectoryName(inputPath)!;

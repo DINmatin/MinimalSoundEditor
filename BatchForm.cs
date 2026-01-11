@@ -26,6 +26,7 @@ namespace MinimalSoundEditor
         private readonly CheckBox _chkOutWav;
         private readonly CheckBox _chkOutMp4;
         private readonly GroupBox _grpOutput;
+        private readonly CheckBox _chkUniqueName;
         public BatchForm()
         {
             Text = "Batch";
@@ -64,12 +65,22 @@ namespace MinimalSoundEditor
                 Width = 312,
                 Height = 40
             };
+            _chkUniqueName = new CheckBox
+            {
+                Text = "Don't overwrite",
+                Left = 270,   // 👈 left of the groupbox (groupbox starts at 460)
+                Top = 275,    // 👈 same row as Normalize/Trim
+                Width = 170,
+                Checked = true
+            };
 
-            _chkOutWav = new CheckBox { Text = "WAV", Left = 12, Top = 25, Width = 90, Checked = true };
-            _chkOutMp4 = new CheckBox { Text = "MP4-Video", Left = 110, Top = 25, Width = 140, Checked = true };
+            _chkOutWav = new CheckBox { Text = "WAV", Left = 12, Top = 12, Width = 60, Checked = true };
+            _chkOutMp4 = new CheckBox { Text = "MP4", Left = 70, Top = 12, Width = 60, Checked = true };
             _grpOutput.Controls.Add(_chkOutWav);
             _grpOutput.Controls.Add(_chkOutMp4);
+
             Controls.Add(_grpOutput);
+            Controls.Add(_chkUniqueName); // ✅ now it's outside, on the form
 
             _btnStart = new Button { Text = "Start", Left = 12, Top = 320, Width = 120, Height = 32 };
             _btnCancel = new Button { Text = "Cancel", Left = 140, Top = 320, Width = 120, Height = 32, Enabled = false };
@@ -177,7 +188,8 @@ namespace MinimalSoundEditor
     normalize: _chkNormalize.Checked,
     trimSilence: _chkTrim.Checked,
     outputWav: _chkOutWav.Checked,
-    outputMp4: _chkOutMp4.Checked
+    outputMp4: _chkOutMp4.Checked,
+    uniqueFilename: _chkUniqueName.Checked
 );
 
             ToggleUi(isRunning: true);
@@ -233,6 +245,7 @@ namespace MinimalSoundEditor
                 ToggleUi(isRunning: false);
             }
         }
+        
 
         private void BtnCancel_Click(object? sender, EventArgs e)
         {
@@ -251,6 +264,8 @@ namespace MinimalSoundEditor
 
             _chkOutWav.Enabled = !isRunning;
             _chkOutMp4.Enabled = !isRunning;
+
+            _chkUniqueName.Enabled = !isRunning;
         }
 
         private void SetStatus(ListViewItem it, string status)
