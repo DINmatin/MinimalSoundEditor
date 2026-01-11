@@ -1681,6 +1681,7 @@ namespace MinimalSoundEditor
             _detailView.PlaybackSample = sampleIndex;
 
             UpdateStatusBar();
+            SyncVideoPreview(force: true);
 
             if (restartIfPlaying && _waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
             {
@@ -1806,6 +1807,8 @@ namespace MinimalSoundEditor
             if (insertPos < 0) insertPos = 0;
             if (insertPos > total) insertPos = total;
 
+            bool insertedAtStart = (insertPos == 0);
+
             // Undo sichern
             _undoStack.Push(CloneSamples(_currentSamples));
 
@@ -1857,6 +1860,19 @@ namespace MinimalSoundEditor
 
             UpdateInfo(_currentSampleRate, newTotal);
             UpdatePlaybackTimerInterval();
+
+            // ✅ Wenn am Anfang eingefügt wurde: Video-Offset nach links schieben
+            // (damit der “alte Inhalt” weiterhin zur gleichen Videostelle passt)
+            if (!string.IsNullOrEmpty(_currentVideoPath) &&
+                insertedAtStart &&
+                _currentSampleRate > 0 &&
+                clipLen > 0)
+            {
+                _videoTimeOffsetSeconds -= clipLen / (double)_currentSampleRate;
+            }
+
+            // ✅ Preview sofort neu setzen (Playhead hat sich auch bewegt)
+            SyncVideoPreview(force: true);
 
             _isDirty = true;
             UpdateWindowTitle();

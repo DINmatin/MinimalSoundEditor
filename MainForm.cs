@@ -1174,6 +1174,8 @@ namespace MinimalSoundEditor
             // Detail-View mitscrollen lassen
             EnsurePlayheadVisibleInDetail();
 
+            SyncVideoPreview(force: true);
+
             return true;
         }
 
@@ -1612,6 +1614,7 @@ namespace MinimalSoundEditor
             {
                 end--;
             }
+            int removedAtStartSamples = start; // ✅ merkt: wie viel am Anfang weggefallen ist
 
             // Nichts zu trimmen?
             if (start == 0 && end == total - 1)
@@ -1658,6 +1661,17 @@ namespace MinimalSoundEditor
 
             UpdateInfo(_currentSampleRate, _currentSamples.Length);
             UpdatePlaybackTimerInterval();
+
+            // ✅ Video-Offset korrigieren (nur wenn wirklich am Anfang gekürzt wurde)
+            if (!string.IsNullOrEmpty(_currentVideoPath) &&
+                removedAtStartSamples > 0 &&
+                _currentSampleRate > 0)
+            {
+                _videoTimeOffsetSeconds += removedAtStartSamples / (double)_currentSampleRate;
+            }
+
+            // ✅ Preview sofort neu auf Timeline setzen
+            SyncVideoPreview(force: true);
 
             _isDirty = true;
             UpdateWindowTitle();
