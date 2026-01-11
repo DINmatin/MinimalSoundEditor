@@ -27,6 +27,8 @@ namespace MinimalSoundEditor
 
         public const int SelectionFillAlpha = 110; // oder 80, wie du magst
 
+        private string? _pendingAutoLoadVideoPath;
+
         public enum ThemeMode
         {
             Light,
@@ -1737,7 +1739,18 @@ namespace MinimalSoundEditor
 
             try
             {
+                string ext = Path.GetExtension(_lastLoadedFilePath);
+
+                if (ext.Equals(".mp4", StringComparison.OrdinalIgnoreCase))
+                {
+                    // MP4 erst nach Shown laden (sonst kein Handle/Owner, Preview öffnet nicht sauber)
+                    _pendingAutoLoadVideoPath = _lastLoadedFilePath;
+                    return;
+                }
+
+                // normale Audiodatei direkt laden
                 LoadAudioFile(_lastLoadedFilePath);
+
             }
             catch
             {

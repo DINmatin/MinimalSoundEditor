@@ -3,13 +3,14 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.IO;
 
 namespace MinimalSoundEditor
 {
@@ -25,9 +26,18 @@ namespace MinimalSoundEditor
 
         private VideoRenderForm? _videoPreview;
         private string? _currentVideoPath;
+        private string? _originalVideoPath; // ✅ merkt sich das Original-MP4 (für Export-Quelle)
         private ToolStripButton? _btnOpenPreview;
 
         private double _videoTimeOffsetSeconds = 0.0;
+
+        private enum Mp4SaveChoice
+        {
+            WavOnly,
+            VideoWithAudio,
+            Both,
+            Cancel
+        }
 
         public MainForm()
         {
@@ -36,6 +46,8 @@ namespace MinimalSoundEditor
 
             // 2) Logik-Init
             _instance = this;
+
+            this.Shown += MainForm_Shown;
 
             // About
             aboutToolStripMenuItem.Click += AboutToolStripMenuItem_Click;
@@ -777,6 +789,7 @@ namespace MinimalSoundEditor
         }
         private void OpenVideoFile(string mp4Path)
         {
+            _originalVideoPath = mp4Path;  // ✅ NEU
             _currentVideoPath = mp4Path;
 
             _videoTimeOffsetSeconds = 0.0;
@@ -812,6 +825,8 @@ namespace MinimalSoundEditor
 
         private void ClearVideoState()
         {
+            _originalVideoPath = null; // ✅ NEU
+
             // forget video
             _currentVideoPath = null;
 
@@ -1271,6 +1286,12 @@ namespace MinimalSoundEditor
             if (_currentSamples == null || _currentSamples.Length == 0)
                 return;
 
+            if (IsMp4Loaded())
+            {
+                SaveMp4Workflow();
+                return;
+            }
+
             // Falls wir schon eine WAV-Datei haben: Nachfrage Overwrite/Rename
             if (!string.IsNullOrEmpty(_currentFilePath) &&
                 _currentFilePath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
@@ -1306,6 +1327,12 @@ namespace MinimalSoundEditor
 
             if (_currentSamples == null || _currentSamples.Length == 0)
                 return;
+
+            if (IsMp4Loaded())
+            {
+                SaveMp4Workflow();
+                return;
+            }
 
             if (!TryChooseExportFileAndFormat(selectionOnly: false,
                     out string path, out AudioExportFormat format))
@@ -1723,6 +1750,232 @@ namespace MinimalSoundEditor
             _videoPreview = null;
             UpdateOpenPreviewButtonVisibility();
         }
+        private void MainForm_Shown(object? sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(_pendingAutoLoadVideoPath))
+                return;
+
+            string path = _pendingAutoLoadVideoPath;
+            _pendingAutoLoadVideoPath = null;
+
+            try
+            {
+                OpenVideoFile(path); // lädt Audio + öffnet Preview (deine bestehende Logik)
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "Fehler beim Laden der Datei:\n" + ex.Message,
+                    "Fehler",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+        private Mp4SaveChoice AskMp4SaveChoice()
+        {
+            using var dlg = new Form
+            {
+                Text = "Speichern",
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MinimizeBox = false,
+                MaximizeBox = false,
+                ShowInTaskbar = false,
+                ClientSize = new Size(460, 170)
+            };
+
+            var lbl = new Label
+            {
+                Left = 12,
+                Top = 12,
+                Width = 436,
+                Height = 44,
+                Text = "MP4 ist geöffnet. Was möchtest du speichern?",
+            };
+
+            Mp4SaveChoice choice = Mp4SaveChoice.Cancel;
+
+            var btnWav = new Button { Left = 12, Top = 70, Width = 210, Height = 32, Text = "Nur WAV (_edited)" };
+            var btnVid = new Button { Left = 238, Top = 70, Width = 210, Height = 32, Text = "Video (mit Ton)" };
+            var btnBoth = new Button { Left = 12, Top = 112, Width = 210, Height = 32, Text = "Beide" };
+            var btnCancel = new Button { Left = 238, Top = 112, Width = 210, Height = 32, Text = "Abbrechen" };
+
+            btnWav.Click += (_, __) => { choice = Mp4SaveChoice.WavOnly; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
+            btnVid.Click += (_, __) => { choice = Mp4SaveChoice.VideoWithAudio; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
+            btnBoth.Click += (_, __) => { choice = Mp4SaveChoice.Both; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
+            btnCancel.Click += (_, __) => { choice = Mp4SaveChoice.Cancel; dlg.DialogResult = DialogResult.Cancel; dlg.Close(); };
+
+            dlg.Controls.AddRange(new Control[] { lbl, btnWav, btnVid, btnBoth, btnCancel });
+            dlg.CancelButton = btnCancel;
+
+            dlg.ShowDialog(this);
+            return choice;
+        }
+        private void SaveMp4Workflow()
+        {
+            var choice = AskMp4SaveChoice();
+            if (choice == Mp4SaveChoice.Cancel)
+                return;
+
+            bool savedAnything = false;
+
+            // 1) WAV speichern?
+            if (choice == Mp4SaveChoice.WavOnly || choice == Mp4SaveChoice.Both)
+            {
+                if (!TryChooseWavPath(out string wavPath))
+                    return;
+
+                ExportSamplesToFile(_currentSamples!, _currentSampleRate, wavPath, AudioExportFormat.Wav);
+                _currentFilePath = wavPath;
+                savedAnything = true;
+            }
+
+            // 2) Video mit Ton speichern?
+            if (choice == Mp4SaveChoice.VideoWithAudio || choice == Mp4SaveChoice.Both)
+            {
+                if (!TryChooseMp4Path(out string mp4Path))
+                    return;
+
+                ExportMp4WithEditedAudio(mp4Path);
+                savedAnything = true;
+            }
+
+            if (savedAnything)
+            {
+                _isDirty = false;
+                UpdateWindowTitle();
+            }
+        }
+        private bool TryChooseWavPath(out string path)
+        {
+            path = "";
+
+            string baseName =
+                !string.IsNullOrEmpty(_currentFilePath) ? Path.GetFileNameWithoutExtension(_currentFilePath) :
+                !string.IsNullOrEmpty(_originalVideoPath) ? Path.GetFileNameWithoutExtension(_originalVideoPath) :
+                "audio";
+
+            using var sfd = new SaveFileDialog
+            {
+                Filter = "WAV-Datei (*.wav)|*.wav",
+                FileName = baseName + "_edited.wav"
+            };
+
+            if (sfd.ShowDialog(this) != DialogResult.OK)
+                return false;
+
+            path = sfd.FileName;
+            return true;
+        }
+
+        private bool TryChooseMp4Path(out string path)
+        {
+            path = "";
+
+            string baseName =
+                !string.IsNullOrEmpty(_originalVideoPath) ? Path.GetFileNameWithoutExtension(_originalVideoPath) :
+                !string.IsNullOrEmpty(_currentVideoPath) ? Path.GetFileNameWithoutExtension(_currentVideoPath) :
+                "video";
+
+            using var sfd = new SaveFileDialog
+            {
+                Filter = "MP4 Video (*.mp4)|*.mp4",
+                FileName = baseName + "_edited.mp4"
+            };
+
+            if (sfd.ShowDialog(this) != DialogResult.OK)
+                return false;
+
+            path = sfd.FileName;
+            return true;
+        }
+        private string GetFfmpegPath()
+        {
+            // gleiche Logik wie im VideoPreview:
+            string ffmpeg = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Tools", "ffmpeg.exe");
+            if (!File.Exists(ffmpeg))
+                throw new FileNotFoundException("ffmpeg.exe nicht gefunden. Erwartet unter: " + ffmpeg);
+            return ffmpeg;
+        }
+
+        private void ExportMp4WithEditedAudio(string outputMp4Path)
+        {
+            if (_currentSamples == null || _currentSamples.Length == 0)
+                return;
+
+            if (string.IsNullOrEmpty(_originalVideoPath) && string.IsNullOrEmpty(_currentVideoPath))
+                throw new InvalidOperationException("Kein Video geladen.");
+
+            string inputVideo = _originalVideoPath ?? _currentVideoPath!;
+
+            // 1) Edited Audio -> Temp WAV
+            string tempWav = Path.Combine(Path.GetTempPath(), "mse_audio_" + Guid.NewGuid().ToString("N") + ".wav");
+            ExportSamplesToFile(_currentSamples, _currentSampleRate, tempWav, AudioExportFormat.Wav);
+
+            try
+            {
+                string ffmpeg = GetFfmpegPath();
+
+                double off = _videoTimeOffsetSeconds; // deine Offset-Variable
+                string offStr = off.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+                // Wenn Offset > 0: Video vorne trimmen (entspricht deinem Preview-Sync)
+                // Wenn Offset <= 0: Video startet normal (Preview clamped sowieso auf 0)
+                string args;
+                if (off > 0.0001)
+                {
+                    args =
+                        $"-y -ss {offStr} -i \"{inputVideo}\" -i \"{tempWav}\" " +
+                        $"-map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest " +
+                        $"\"{outputMp4Path}\"";
+                }
+                else
+                {
+                    args =
+                        $"-y -i \"{inputVideo}\" -i \"{tempWav}\" " +
+                        $"-map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest " +
+                        $"\"{outputMp4Path}\"";
+                }
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = ffmpeg,
+                    Arguments = args,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true
+                };
+
+                using var p = Process.Start(psi);
+                if (p == null)
+                    throw new Exception("ffmpeg konnte nicht gestartet werden.");
+
+                string stderr = p.StandardError.ReadToEnd();
+                string stdout = p.StandardOutput.ReadToEnd();
+
+                p.WaitForExit();
+
+                // Wichtig: ExitCode kann 0 sein, aber Datei fehlt -> dann ist es trotzdem ein Fehler
+                if (p.ExitCode != 0 || !File.Exists(outputMp4Path))
+                {
+                    throw new Exception("ffmpeg fehlgeschlagen.\n" +
+                                        $"ExitCode={p.ExitCode}\n\n" +
+                                        (string.IsNullOrWhiteSpace(stderr) ? stdout : stderr));
+                }
+            }
+            finally
+            {
+                try { if (File.Exists(tempWav)) File.Delete(tempWav); } catch { }
+            }
+        }
+
+        private bool IsMp4Loaded()
+        {
+            return !string.IsNullOrEmpty(_currentVideoPath) &&
+                   Path.GetExtension(_currentVideoPath).Equals(".mp4", StringComparison.OrdinalIgnoreCase);
+        }
+
         void PositionVideoPreviewBottomLeft()
         {
             if (_videoPreview == null || _videoPreview.IsDisposed) return;
