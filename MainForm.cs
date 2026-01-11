@@ -831,7 +831,7 @@ namespace MinimalSoundEditor
             _currentVideoPath = null;
 
             _videoTimeOffsetSeconds = 0.0;
-            
+
             // close preview window if it exists
             if (_videoPreview != null)
             {
@@ -2019,6 +2019,10 @@ namespace MinimalSoundEditor
             SyncVideoPreview(force: true);
         }
 
-
+        private void BtnBatch_Click(object sender, EventArgs e)
+        {
+            using var f = new BatchForm();
+            f.ShowDialog(this);
+        }
     }
 }

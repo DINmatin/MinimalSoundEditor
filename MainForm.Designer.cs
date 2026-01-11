@@ -71,6 +71,7 @@ namespace MinimalSoundEditor
             _lblSel = new ToolStripStatusLabel();
             _lblTotal = new ToolStripStatusLabel();
             _lblPos = new ToolStripStatusLabel();
+            BtnBatch = new Button();
             _menuStrip.SuspendLayout();
             _topPanel.SuspendLayout();
             _overviewPanel.SuspendLayout();
@@ -181,6 +182,7 @@ namespace MinimalSoundEditor
             // 
             // _topPanel
             // 
+            _topPanel.Controls.Add(BtnBatch);
             _topPanel.Controls.Add(_btnVideoPreview);
             _topPanel.Controls.Add(_chkAutoFollow);
             _topPanel.Controls.Add(_btnNormalize);
@@ -227,7 +229,7 @@ namespace MinimalSoundEditor
             _chkAutoFollow.FlatAppearance.CheckedBackColor = Color.MediumPurple;
             _chkAutoFollow.FlatAppearance.MouseOverBackColor = Color.FromArgb(255, 192, 192);
             _chkAutoFollow.FlatStyle = FlatStyle.Flat;
-            _chkAutoFollow.Location = new Point(316, 6);
+            _chkAutoFollow.Location = new Point(343, 6);
             _chkAutoFollow.Name = "_chkAutoFollow";
             _chkAutoFollow.Size = new Size(32, 32);
             _chkAutoFollow.TabIndex = 16;
@@ -407,7 +409,7 @@ namespace MinimalSoundEditor
             _btnUndo.BackgroundImageLayout = ImageLayout.Stretch;
             _btnUndo.FlatAppearance.BorderSize = 0;
             _btnUndo.FlatStyle = FlatStyle.Flat;
-            _btnUndo.Location = new Point(278, 6);
+            _btnUndo.Location = new Point(305, 6);
             _btnUndo.Name = "_btnUndo";
             _btnUndo.Size = new Size(32, 32);
             _btnUndo.TabIndex = 2;
@@ -420,7 +422,7 @@ namespace MinimalSoundEditor
             _btnDeleteSelection.BackgroundImageLayout = ImageLayout.Stretch;
             _btnDeleteSelection.FlatAppearance.BorderSize = 0;
             _btnDeleteSelection.FlatStyle = FlatStyle.Flat;
-            _btnDeleteSelection.Location = new Point(236, 6);
+            _btnDeleteSelection.Location = new Point(263, 6);
             _btnDeleteSelection.Name = "_btnDeleteSelection";
             _btnDeleteSelection.Size = new Size(32, 32);
             _btnDeleteSelection.TabIndex = 1;
@@ -524,6 +526,19 @@ namespace MinimalSoundEditor
             _lblPos.Size = new Size(80, 17);
             _lblPos.Text = "Pos: 00:00.000";
             // 
+            // BtnBatch
+            // 
+            BtnBatch.BackgroundImage = Resource1.icon_batch;
+            BtnBatch.BackgroundImageLayout = ImageLayout.Stretch;
+            BtnBatch.FlatAppearance.BorderSize = 0;
+            BtnBatch.FlatStyle = FlatStyle.Flat;
+            BtnBatch.Location = new Point(209, 8);
+            BtnBatch.Name = "BtnBatch";
+            BtnBatch.Size = new Size(32, 32);
+            BtnBatch.TabIndex = 18;
+            BtnBatch.UseVisualStyleBackColor = true;
+            BtnBatch.Click += BtnBatch_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -595,5 +610,6 @@ namespace MinimalSoundEditor
         private CheckBox _chkAutoFollow;
         private ToolStripMenuItem aboutToolStripMenuItem;
         private Button _btnVideoPreview;
+        private Button BtnBatch;
     }
 }

@@ -73,6 +73,16 @@ namespace MinimalSoundEditor {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap icon_batch {
+            get {
+                object obj = ResourceManager.GetObject("icon_batch", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap icon_compress {
             get {
                 object obj = ResourceManager.GetObject("icon_compress", resourceCulture);
