@@ -27,9 +27,6 @@ namespace MinimalSoundEditor
 
         public const int SelectionFillAlpha = 110; // oder 80, wie du magst
 
-        private double _videoTimeOffsetSeconds = 0.0;
-
-
         public enum ThemeMode
         {
             Light,
@@ -81,7 +78,7 @@ namespace MinimalSoundEditor
         private bool _autoFollowEnabled = true;
 
         private string _currentFilePath;   // aktuell geladene Datei
-        
+
         // Auto-Load-Feature
         private string _lastLoadedFilePath;   // Pfad der zuletzt erfolgreich geladenen Datei
         private bool _autoLoadLastFile = true; // intern: ob beim Start automatisch geladen werden soll
@@ -95,7 +92,7 @@ namespace MinimalSoundEditor
             Aac // AAC in .m4a/.mp4 Container
         }
 
-            
+
         private Image resizeIconImage(Image icon)
         {
             Image img = icon;
@@ -640,7 +637,6 @@ namespace MinimalSoundEditor
         private void MainForm_Resize(object sender, EventArgs e)
         {
             UpdatePlaybackTimerInterval();
-            PositionVideoPreviewBottomLeft(); // ✅ keep it docked
         }
 
         void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -768,7 +764,7 @@ namespace MinimalSoundEditor
                     : $"{seconds:0.00}s";
 
                 _lblInfo.Text = fi.Name;
-//                    $"{fi.Name}   •   {niceTime}   •   {sampleRate} Hz   •   {(channels > 1 ? $"{channels} Channels" : "Mono")}";
+                //                    $"{fi.Name}   •   {niceTime}   •   {sampleRate} Hz   •   {(channels > 1 ? $"{channels} Channels" : "Mono")}";
             }
             catch
             {
@@ -1472,7 +1468,7 @@ namespace MinimalSoundEditor
 
             return true;
         }
-       
+
         private string GetSettingsFilePath()
         {
             var dir = Path.Combine(
@@ -1681,8 +1677,8 @@ namespace MinimalSoundEditor
             _detailView.PlaybackSample = sampleIndex;
 
             UpdateStatusBar();
-            SyncVideoPreview(force: true);
 
+            SyncVideoPreview(force: true);
             if (restartIfPlaying && _waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing)
             {
                 BtnPlay_Click(null, EventArgs.Empty);
@@ -1807,7 +1803,12 @@ namespace MinimalSoundEditor
             if (insertPos < 0) insertPos = 0;
             if (insertPos > total) insertPos = total;
 
-            bool insertedAtStart = (insertPos == 0);
+            // ✅ If we insert audio BEFORE the original start, the video should effectively start later on the audio timeline.
+            // We store this as a (possibly negative) offset: videoTime = audioTime + _videoTimeOffsetSeconds.
+            if (!string.IsNullOrEmpty(_currentVideoPath) && _currentSampleRate > 0 && insertPos == 0)
+            {
+                _videoTimeOffsetSeconds -= clipLen / (double)_currentSampleRate;
+            }
 
             // Undo sichern
             _undoStack.Push(CloneSamples(_currentSamples));
@@ -1861,17 +1862,6 @@ namespace MinimalSoundEditor
             UpdateInfo(_currentSampleRate, newTotal);
             UpdatePlaybackTimerInterval();
 
-            // ✅ Wenn am Anfang eingefügt wurde: Video-Offset nach links schieben
-            // (damit der “alte Inhalt” weiterhin zur gleichen Videostelle passt)
-            if (!string.IsNullOrEmpty(_currentVideoPath) &&
-                insertedAtStart &&
-                _currentSampleRate > 0 &&
-                clipLen > 0)
-            {
-                _videoTimeOffsetSeconds -= clipLen / (double)_currentSampleRate;
-            }
-
-            // ✅ Preview sofort neu setzen (Playhead hat sich auch bewegt)
             SyncVideoPreview(force: true);
 
             _isDirty = true;

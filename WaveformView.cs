@@ -1500,7 +1500,6 @@ namespace MinimalSoundEditor
         /// </summary>
         public void DeleteSelection()
         {
-
             // ✅ reset "last delete" info
             LastDeletedStartSample = 0;
             LastDeletedSampleCount = 0;
