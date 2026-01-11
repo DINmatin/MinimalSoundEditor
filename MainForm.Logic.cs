@@ -1803,6 +1803,8 @@ namespace MinimalSoundEditor
             if (insertPos < 0) insertPos = 0;
             if (insertPos > total) insertPos = total;
 
+            bool insertedAtStart = (insertPos == 0);
+
             // ✅ If we insert audio BEFORE the original start, the video should effectively start later on the audio timeline.
             // We store this as a (possibly negative) offset: videoTime = audioTime + _videoTimeOffsetSeconds.
             if (!string.IsNullOrEmpty(_currentVideoPath) && _currentSampleRate > 0 && insertPos == 0)
@@ -1862,6 +1864,17 @@ namespace MinimalSoundEditor
             UpdateInfo(_currentSampleRate, newTotal);
             UpdatePlaybackTimerInterval();
 
+            // ✅ Wenn am Anfang eingefügt wurde: Video-Offset nach links schieben
+            // (damit der “alte Inhalt” weiterhin zur gleichen Videostelle passt)
+            if (!string.IsNullOrEmpty(_currentVideoPath) &&
+                insertedAtStart &&
+                _currentSampleRate > 0 &&
+                clipLen > 0)
+            {
+                _videoTimeOffsetSeconds -= clipLen / (double)_currentSampleRate;
+            }
+
+            // ✅ Preview sofort neu setzen (Playhead hat sich auch bewegt)
             SyncVideoPreview(force: true);
 
             _isDirty = true;
