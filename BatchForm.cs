@@ -14,7 +14,6 @@ namespace MinimalSoundEditor
         private readonly ListView _lv;
         private readonly CheckBox _chkNormalize;
         private readonly CheckBox _chkTrim;
-        private readonly CheckBox _chkSave;
         private readonly Button _btnStart;
         private readonly Button _btnRemove;
         private readonly Button _btnClear;
@@ -26,6 +25,7 @@ namespace MinimalSoundEditor
 
         private readonly CheckBox _chkOutWav;
         private readonly CheckBox _chkOutMp4;
+        private readonly GroupBox _grpOutput;
         public BatchForm()
         {
             Text = "Batch";
@@ -55,18 +55,26 @@ namespace MinimalSoundEditor
 
             _chkNormalize = new CheckBox { Text = "Normalize", Left = 12, Top = 275, Width = 120, Checked = true };
             _chkTrim = new CheckBox { Text = "Trim silence", Left = 140, Top = 275, Width = 120, Checked = true };
-            _chkSave = new CheckBox { Text = "Save (unattended)", Left = 270, Top = 275, Width = 180, Checked = true };
 
-            _chkOutWav = new CheckBox { Text = "Output WAV", Left = 470, Top = 275, Width = 120, Checked = true };
-            _chkOutMp4 = new CheckBox { Text = "Output MP4", Left = 600, Top = 275, Width = 120, Checked = true };
+            _grpOutput = new GroupBox
+            {
+                Text = "mp4-Files",
+                Left = 460,
+                Top = 262,
+                Width = 312,
+                Height = 40
+            };
 
-            Controls.Add(_chkOutWav);
-            Controls.Add(_chkOutMp4);
+            _chkOutWav = new CheckBox { Text = "WAV", Left = 12, Top = 25, Width = 90, Checked = true };
+            _chkOutMp4 = new CheckBox { Text = "MP4-Video", Left = 110, Top = 25, Width = 140, Checked = true };
+            _grpOutput.Controls.Add(_chkOutWav);
+            _grpOutput.Controls.Add(_chkOutMp4);
+            Controls.Add(_grpOutput);
 
-            _btnStart = new Button { Text = "Start", Left = 12, Top = 310, Width = 120, Height = 32 };
-            _btnCancel = new Button { Text = "Cancel", Left = 140, Top = 310, Width = 120, Height = 32, Enabled = false };
-            _btnRemove = new Button { Text = "Remove selected", Left = 270, Top = 310, Width = 150, Height = 32 };
-            _btnClear = new Button { Text = "Clear", Left = 430, Top = 310, Width = 120, Height = 32 };
+            _btnStart = new Button { Text = "Start", Left = 12, Top = 320, Width = 120, Height = 32 };
+            _btnCancel = new Button { Text = "Cancel", Left = 140, Top = 320, Width = 120, Height = 32, Enabled = false };
+            _btnRemove = new Button { Text = "Remove selected", Left = 270, Top = 320, Width = 150, Height = 32 };
+            _btnClear = new Button { Text = "Clear", Left = 430, Top = 320, Width = 120, Height = 32 };
 
             _btnStart.Click += BtnStart_Click;
             _btnCancel.Click += BtnCancel_Click;
@@ -89,7 +97,6 @@ namespace MinimalSoundEditor
             Controls.Add(_lv);
             Controls.Add(_chkNormalize);
             Controls.Add(_chkTrim);
-            Controls.Add(_chkSave);
             Controls.Add(_btnStart);
             Controls.Add(_btnCancel);
             Controls.Add(_btnRemove);
@@ -151,7 +158,7 @@ namespace MinimalSoundEditor
 
         private async void BtnStart_Click(object? sender, EventArgs e)
         {
-            if (_chkSave.Checked && !_chkOutWav.Checked && !_chkOutMp4.Checked)
+            if ( !_chkOutWav.Checked && !_chkOutMp4.Checked)
             {
                 MessageBox.Show(this, "Please choose at least one output: WAV and/or MP4.", "Batch",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -160,7 +167,7 @@ namespace MinimalSoundEditor
 
 
             if (_lv.Items.Count == 0) return;
-            if (!_chkNormalize.Checked && !_chkTrim.Checked && !_chkSave.Checked)
+            if (!_chkNormalize.Checked && !_chkTrim.Checked )
             {
                 MessageBox.Show(this, "Nothing to do. Enable at least one checkbox.", "Batch", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -169,7 +176,6 @@ namespace MinimalSoundEditor
             var options = new BatchOptions(
     normalize: _chkNormalize.Checked,
     trimSilence: _chkTrim.Checked,
-    saveUnattended: _chkSave.Checked,
     outputWav: _chkOutWav.Checked,
     outputMp4: _chkOutMp4.Checked
 );
@@ -242,7 +248,6 @@ namespace MinimalSoundEditor
 
             _chkNormalize.Enabled = !isRunning;
             _chkTrim.Enabled = !isRunning;
-            _chkSave.Enabled = !isRunning;
 
             _chkOutWav.Enabled = !isRunning;
             _chkOutMp4.Enabled = !isRunning;
