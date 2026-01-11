@@ -24,7 +24,8 @@ namespace MinimalSoundEditor
 
         private CancellationTokenSource? _cts;
 
-
+        private readonly CheckBox _chkOutWav;
+        private readonly CheckBox _chkOutMp4;
         public BatchForm()
         {
             Text = "Batch";
@@ -55,6 +56,12 @@ namespace MinimalSoundEditor
             _chkNormalize = new CheckBox { Text = "Normalize", Left = 12, Top = 275, Width = 120, Checked = true };
             _chkTrim = new CheckBox { Text = "Trim silence", Left = 140, Top = 275, Width = 120, Checked = true };
             _chkSave = new CheckBox { Text = "Save (unattended)", Left = 270, Top = 275, Width = 180, Checked = true };
+
+            _chkOutWav = new CheckBox { Text = "Output WAV", Left = 470, Top = 275, Width = 120, Checked = true };
+            _chkOutMp4 = new CheckBox { Text = "Output MP4", Left = 600, Top = 275, Width = 120, Checked = true };
+
+            Controls.Add(_chkOutWav);
+            Controls.Add(_chkOutMp4);
 
             _btnStart = new Button { Text = "Start", Left = 12, Top = 310, Width = 120, Height = 32 };
             _btnCancel = new Button { Text = "Cancel", Left = 140, Top = 310, Width = 120, Height = 32, Enabled = false };
@@ -144,6 +151,14 @@ namespace MinimalSoundEditor
 
         private async void BtnStart_Click(object? sender, EventArgs e)
         {
+            if (_chkSave.Checked && !_chkOutWav.Checked && !_chkOutMp4.Checked)
+            {
+                MessageBox.Show(this, "Please choose at least one output: WAV and/or MP4.", "Batch",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+
             if (_lv.Items.Count == 0) return;
             if (!_chkNormalize.Checked && !_chkTrim.Checked && !_chkSave.Checked)
             {
@@ -151,16 +166,20 @@ namespace MinimalSoundEditor
                 return;
             }
 
+            var options = new BatchOptions(
+    normalize: _chkNormalize.Checked,
+    trimSilence: _chkTrim.Checked,
+    saveUnattended: _chkSave.Checked,
+    outputWav: _chkOutWav.Checked,
+    outputMp4: _chkOutMp4.Checked
+);
+
             ToggleUi(isRunning: true);
 
             _cts = new CancellationTokenSource();
             var ct = _cts.Token;
 
-            var options = new BatchOptions(
-                normalize: _chkNormalize.Checked,
-                trimSilence: _chkTrim.Checked,
-                saveUnattended: _chkSave.Checked
-            );
+           
 
             try
             {
@@ -224,6 +243,9 @@ namespace MinimalSoundEditor
             _chkNormalize.Enabled = !isRunning;
             _chkTrim.Enabled = !isRunning;
             _chkSave.Enabled = !isRunning;
+
+            _chkOutWav.Enabled = !isRunning;
+            _chkOutMp4.Enabled = !isRunning;
         }
 
         private void SetStatus(ListViewItem it, string status)

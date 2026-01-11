@@ -25,6 +25,29 @@ namespace MinimalSoundEditor
 
             return outS;
         }
+        public static (float[] Trimmed, int RemovedStartSamples) TrimSilenceWithInfo(float[] samples, float threshold)
+        {
+            if (samples.Length == 0) return (samples, 0);
+
+            int start = 0;
+            int end = samples.Length - 1;
+
+            while (start < samples.Length && Math.Abs(samples[start]) < threshold)
+                start++;
+
+            while (end > start && Math.Abs(samples[end]) < threshold)
+                end--;
+
+            int len = end - start + 1;
+            if (len <= 0) return (Array.Empty<float>(), start);
+
+            if (start == 0 && len == samples.Length)
+                return (samples, 0);
+
+            var outS = new float[len];
+            Array.Copy(samples, start, outS, 0, len);
+            return (outS, start);
+        }
 
         public static float[] TrimSilence(float[] samples, float threshold)
         {
