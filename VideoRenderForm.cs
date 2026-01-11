@@ -89,10 +89,19 @@ public class VideoRenderForm : Form
         }
         catch (Exception ex)
         {
+            // ✅ EOF / "kein Frame" am Ende NICHT als Fehler anzeigen:
+            if (ex.Message.Contains("produced no frame", StringComparison.OrdinalIgnoreCase) ||
+                ex.Message.Contains("likely EOF", StringComparison.OrdinalIgnoreCase))
+            {
+                Text = "Video Preview";
+                return; // altes Bild stehen lassen
+            }
+
             MessageBox.Show(this, ex.Message, "Video Preview Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             Text = "Video Preview";
         }
+
         finally
         {
             UseWaitCursor = false;
@@ -118,9 +127,19 @@ public class VideoRenderForm : Form
         }
         catch (Exception ex)
         {
+            // ✅ EOF / "kein Frame" am Ende NICHT als Fehler anzeigen:
+            if (ex.Message.Contains("produced no frame", StringComparison.OrdinalIgnoreCase) ||
+                ex.Message.Contains("likely EOF", StringComparison.OrdinalIgnoreCase))
+            {
+                Text = "Video Preview";
+                return; // altes Bild stehen lassen
+            }
+
             MessageBox.Show(this, ex.Message, "Video Preview Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Text = "Video Preview";
         }
+
         finally
         {
             UseWaitCursor = false;
@@ -169,43 +188,59 @@ public class VideoRenderForm : Form
         if (!File.Exists(ffmpeg))
             throw new FileNotFoundException("ffmpeg.exe not found next to the app. Put ffmpeg.exe in the same folder as your .exe.");
 
-        string outPng = Path.Combine(Path.GetTempPath(), "mse_frame_" + Guid.NewGuid().ToString("N") + ".png");
+        // ✅ Mehrere Versuche: wenn wir am EOF sind (kein Frame), probieren wir leicht vorher
+        double[] backoff = { 0.0, 0.03, 0.06, 0.12, 0.25, 0.5 };
 
-        // ffmpeg: -ss BEFORE -i ist schnell (keyframe-genauigkeit kann minimal abweichen)
-        // Wenn du frame-genau willst: -ss nach -i (langsamer).
-        string ss = seconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Exception? lastError = null;
 
-        string args =
-     $"-hide_banner -loglevel error -nostdin -y -ss {ss} -i \"{videoPath}\" -frames:v 1 -vf scale=960:-1 \"{outPng}\"";
-
-
-        var psi = new ProcessStartInfo
+        foreach (double b in backoff)
         {
-            FileName = ffmpeg,
-            Arguments = args,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardError = false,
-            RedirectStandardOutput = false
-        };
+            double t = Math.Max(0, seconds - b);
 
+            string outPng = Path.Combine(
+                Path.GetTempPath(),
+                "mse_frame_" + Guid.NewGuid().ToString("N") + ".png"
+            );
 
-        using var p = Process.Start(psi);
-        if (p == null)
-            throw new Exception("Could not start ffmpeg.");
+            string ss = t.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-        if (!p.WaitForExit(15000)) // 15s
-        {
-            try { p.Kill(entireProcessTree: true); } catch { }
-            throw new Exception("ffmpeg timeout (15s).");
+            string args =
+                $"-hide_banner -loglevel error -nostdin -y -ss {ss} -i \"{videoPath}\" -frames:v 1 -vf scale=960:-1 \"{outPng}\"";
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = ffmpeg,
+                Arguments = args,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardError = false,
+                RedirectStandardOutput = false
+            };
+
+            using var p = Process.Start(psi);
+            if (p == null)
+                throw new Exception("Could not start ffmpeg.");
+
+            if (!p.WaitForExit(15000))
+            {
+                try { p.Kill(entireProcessTree: true); } catch { }
+                lastError = new Exception("ffmpeg timeout (15s).");
+                continue;
+            }
+
+            // ✅ Erfolg: PNG existiert
+            if (p.ExitCode == 0 && File.Exists(outPng))
+                return outPng;
+
+            // cleanup, falls ffmpeg was angelegt hat, aber es unbrauchbar ist
+            try { if (File.Exists(outPng)) File.Delete(outPng); } catch { }
+
+            // merken und weiter probieren
+            lastError = new Exception("ffmpeg produced no frame (likely EOF). ExitCode=" + p.ExitCode);
         }
 
+        // Wenn wir hier sind: auch mit Backoff kein Frame
+        throw lastError ?? new Exception("ffmpeg produced no frame (likely EOF).");
 
-        if (p.ExitCode != 0 || !File.Exists(outPng))
-        {
-            throw new Exception("ffmpeg failed. ExitCode=" + p.ExitCode);
-        }
-
-        return outPng;
     }
 }
