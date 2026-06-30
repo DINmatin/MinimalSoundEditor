@@ -84,8 +84,22 @@ if not exist "%PUBLISH%\MinimalSoundEditor.exe" (
     exit /b 1
 )
 
+echo.
+echo === FFmpeg in Release kopieren ===
+if not exist "%PUBLISH%\Tools" mkdir "%PUBLISH%\Tools"
+if errorlevel 1 (
+    echo ERROR: Tools-Ordner konnte im Publish-Verzeichnis nicht erstellt werden.
+    exit /b 1
+)
+
+copy /Y "%FFMPEG%" "%PUBLISH%\Tools\ffmpeg.exe" >nul
+if errorlevel 1 (
+    echo ERROR: Tools\ffmpeg.exe konnte nicht in den Publish-Ordner kopiert werden.
+    exit /b 1
+)
+
 if not exist "%PUBLISH%\Tools\ffmpeg.exe" (
-    echo ERROR: Tools\ffmpeg.exe wurde nicht in den Publish-Ordner kopiert.
+    echo ERROR: Tools\ffmpeg.exe fehlt nach dem Kopieren im Publish-Ordner.
     exit /b 1
 )
 
