@@ -6,6 +6,18 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <AssemblyName>MinimalSoundEditor</AssemblyName>
+    <RootNamespace>MinimalSoundEditor</RootNamespace>
+    <Product>Minimal Sound Editor</Product>
+    <Authors>Martin Höglund</Authors>
+    <Description>A compact waveform editor and ASIO mini-studio for Windows.</Description>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <NeutralLanguage>de-DE</NeutralLanguage>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,6 +42,7 @@
   <ItemGroup>
     <None Update="Tools\ffmpeg.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 

@@ -146,7 +146,7 @@ namespace MinimalSoundEditor
                 themeItem
             });
 
-            aboutToolStripMenuItem = CreateTextMenuItem("Über Minimal Sound Editor...", Keys.Control | Keys.I, (_, _) => { });
+            aboutToolStripMenuItem = CreateTextMenuItem("Über Minimal Sound Editor...", Keys.Control | Keys.I, AboutToolStripMenuItem_Click);
             helpMenu.DropDownItems.Add(aboutToolStripMenuItem);
 
             _menuStrip.Items.AddRange(new ToolStripItem[]
