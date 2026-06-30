@@ -10,12 +10,15 @@ namespace MinimalSoundEditor
 {
     public partial class MainForm
     {
+        // This partial owns the real ASIO device, captured sample buffers, and transfer into the editor document.
+
         private ToolStripStatusLabel? _recordStatusLabel;
         private ToolStripProgressBar? _recordLevelMeter;
         private System.Windows.Forms.Timer? _recordUiTimer;
         private AsioRecordingSettingsForm? _recordingStudio;
 
         private AsioOut? _asioRecorder;
+        // ASIO callbacks run off the UI thread, so buffer mutation and meter publication must be synchronized.
         private readonly object _recordingSamplesLock = new();
         private List<float>? _recordedSamples;
         private float[]? _asioCaptureBuffer;
@@ -32,6 +35,7 @@ namespace MinimalSoundEditor
         private IWin32Window RecordingMessageOwner =>
             _recordingStudio is { IsDisposed: false } ? _recordingStudio : this;
 
+        /// <summary>Creates the recording status controls and timer used by both the main window and Mini-Studio.</summary>
         private void InitAsioRecordingUi()
         {
             _recordStatusLabel = new ToolStripStatusLabel
@@ -66,6 +70,7 @@ namespace MinimalSoundEditor
                 StartAsioRecording();
         }
 
+        /// <summary>Opens or focuses the Mini-Studio after protecting any unsaved current document.</summary>
         private void StartAsioRecording()
         {
             if (_isClosing)
@@ -125,6 +130,7 @@ namespace MinimalSoundEditor
             StopAsioRecording(loadIntoEditor: true, showErrors: true);
         }
 
+        /// <summary>Claims the selected ASIO input, initializes one-channel capture, and starts the record clock.</summary>
         private bool BeginAsioRecording(AsioRecordingSettingsForm studio)
         {
             StopNormalPlaybackForRecording();
@@ -191,6 +197,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Stops callbacks first, detaches the driver, snapshots captured samples, and optionally opens the result.</summary>
         private void StopAsioRecording(bool loadIntoEditor, bool showErrors)
         {
             if (!_isRecording && _asioRecorder == null)
@@ -249,6 +256,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Sanitizes incoming samples, appends them to the recording buffer, and publishes the latest peak atomically.</summary>
         private void AsioRecorder_AudioAvailable(object? sender, AsioAudioAvailableEventArgs e)
         {
             if (!_isRecording)
@@ -307,6 +315,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Handles an unexpected driver stop on the UI thread while preserving already captured audio.</summary>
         private void AsioRecorder_PlaybackStopped(object? sender, StoppedEventArgs e)
         {
             if (!_isRecording)
@@ -336,6 +345,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Ends capture cleanly when the vendor control panel changes the active ASIO configuration.</summary>
         private void AsioRecorder_DriverResetRequest(object? sender, EventArgs e)
         {
             if (!_isRecording)
@@ -364,6 +374,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Applies peak decay and sends a stable meter/time display to both recording interfaces.</summary>
         private void UpdateRecordingUi()
         {
             if (!_isRecording)
@@ -432,6 +443,7 @@ namespace MinimalSoundEditor
             UpdatePlayButtonVisualState();
         }
 
+        /// <summary>Prevents a new recording from silently replacing edited samples already in the document.</summary>
         private bool CheckUnsavedChangesBeforeRecording()
         {
             if (_currentSamples == null || _currentSamples.Length == 0 || !_isDirty)
@@ -459,6 +471,7 @@ namespace MinimalSoundEditor
             return ExportWholeTrackForUnsavedChanges();
         }
 
+        /// <summary>Turns a completed mono recording into a new unsaved document and resets playback/video state.</summary>
         private void LoadRecordedSamplesIntoEditor(float[] samples, int sampleRate)
         {
             if (samples.Length == 0 || sampleRate <= 0)

@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 
 namespace MinimalSoundEditor
 {
+    /// <summary>Runs the file-independent batch pipeline: decode, edit, and write the requested outputs.</summary>
     internal static class BatchProcessor
     {
+        /// <summary>Processes one queue item and reports human-readable progress through the supplied logger.</summary>
         public static async Task ProcessOneAsync(
             string inputPath,
             BatchOptions opt,
@@ -79,6 +81,7 @@ namespace MinimalSoundEditor
 
 
         }
+        /// <summary>Finds a numbered filename without overwriting existing user files.</summary>
         private static string EnsureUniquePath(string path)
         {
             if (!File.Exists(path))
@@ -97,6 +100,7 @@ namespace MinimalSoundEditor
 
             throw new IOException("Could not create a unique filename for: " + path);
         }
+        /// <summary>Places generated files beside their source with a recognizable suffix.</summary>
         private static string MakeOutputPath(string inputPath, string suffix, string ext)
         {
             string dir = Path.GetDirectoryName(inputPath)!;

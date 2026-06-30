@@ -7,10 +7,12 @@ using System.Threading.Tasks;
 
 namespace MinimalSoundEditor
 {
+    /// <summary>Duplicates each mono sample to left and right for stereo-only playback devices.</summary>
     public class MonoToStereoSampleProvider : ISampleProvider
     {
         private readonly ISampleProvider _source;
 
+        /// <summary>Wraps a mono source while preserving its sample rate.</summary>
         public MonoToStereoSampleProvider(ISampleProvider source)
         {
             if (source.WaveFormat.Channels != 1)
@@ -23,6 +25,7 @@ namespace MinimalSoundEditor
 
         public WaveFormat WaveFormat { get; }
 
+        /// <summary>Reads mono frames and interleaves each value as an identical stereo pair.</summary>
         public int Read(float[] buffer, int offset, int count)
         {
             // count ist Stereo → halb so viele Monosamples lesen

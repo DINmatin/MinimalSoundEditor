@@ -9,6 +9,7 @@ using System.Windows.Forms;
 
 namespace MinimalSoundEditor
 {
+    /// <summary>Queues multiple media files and applies the same edit/export choices to each item.</summary>
     public sealed class BatchForm : Form
     {
         private readonly ListView _lv;
@@ -27,6 +28,7 @@ namespace MinimalSoundEditor
         private readonly CheckBox _chkOutMp4;
         private readonly GroupBox _grpOutput;
         private readonly CheckBox _chkUniqueName;
+        /// <summary>Builds the lightweight batch interface and wires cancellation-safe controls.</summary>
         public BatchForm()
         {
             Text = "Batch";
@@ -136,6 +138,7 @@ namespace MinimalSoundEditor
             AddFiles(files);
         }
 
+        /// <summary>Adds files recursively from dropped folders while suppressing unsupported and duplicate entries.</summary>
         private void AddFiles(IEnumerable<string> paths)
         {
             foreach (var p in paths)
@@ -167,6 +170,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Processes the queue sequentially so progress, cancellation, and per-file errors remain predictable.</summary>
         private async void BtnStart_Click(object? sender, EventArgs e)
         {
             if ( !_chkOutWav.Checked && !_chkOutMp4.Checked)
@@ -252,6 +256,7 @@ namespace MinimalSoundEditor
             _cts?.Cancel();
         }
 
+        /// <summary>Locks options during processing to keep the captured BatchOptions snapshot valid.</summary>
         private void ToggleUi(bool isRunning)
         {
             _btnStart.Enabled = !isRunning;
@@ -273,6 +278,7 @@ namespace MinimalSoundEditor
             it.SubItems[2].Text = status;
         }
 
+        /// <summary>Marshals log messages back to the UI thread when processing reports from a worker task.</summary>
         private void Log(string s)
         {
             if (IsDisposed) return;

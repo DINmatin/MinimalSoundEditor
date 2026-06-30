@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 
+/// <summary>Displays still frames extracted by FFmpeg and follows the editor locator without playing video audio.</summary>
 public class VideoRenderForm : Form
 {
     private readonly string _videoPath;
@@ -17,6 +18,7 @@ public class VideoRenderForm : Form
     private bool _suppressLoadingTitleDuringPlayback = false; // default: bei manuellen Seeks darf "(lädt...)" erscheinen
 
 
+    /// <summary>Creates a resizable preview and debounces frame requests to avoid launching FFmpeg every tick.</summary>
     public VideoRenderForm(string videoPath, double seconds)
     {
         _videoPath = videoPath;
@@ -48,6 +50,7 @@ public class VideoRenderForm : Form
     public void SetTime(double seconds)
      => SetTime(seconds, isPlaybackTick: false);
 
+    /// <summary>Schedules a frame update and suppresses distracting loading text during continuous playback.</summary>
     public void SetTime(double seconds, bool isPlaybackTick)
     {
         // MainForm sagt uns explizit, ob das gerade Playback ist
@@ -67,6 +70,7 @@ public class VideoRenderForm : Form
     }
 
 
+    /// <summary>Cancels obsolete work so only the most recently requested locator frame reaches the UI.</summary>
     private async Task RenderFrameAsync()
     {
         try
@@ -122,6 +126,7 @@ public class VideoRenderForm : Form
         }
     }
 
+    /// <summary>Loads the initial frame when the preview first appears.</summary>
     private async Task LoadFrameAsync()
     {
         try
@@ -194,6 +199,7 @@ public class VideoRenderForm : Form
         catch { /* ignore */ }
     }
 
+    /// <summary>Runs FFmpeg for one accurate frame and returns a temporary PNG path for the UI loader.</summary>
     private static string ExtractFrameToTempPng(string videoPath, double seconds)
     {
         // ffmpeg neben der exe:

@@ -6,6 +6,8 @@ namespace MinimalSoundEditor
 {
     public partial class MainForm
     {
+        // This partial builds the public text-menu surface while the hidden legacy controls remain as state holders.
+
         private ToolStripMenuItem? _miPlaybackPlay;
         private ToolStripMenuItem? _miPlaybackLoop;
         private ToolStripMenuItem? _miPlaybackAutoFollow;
@@ -168,6 +170,7 @@ namespace MinimalSoundEditor
             UpdateMenuOnlyUi();
         }
 
+        /// <summary>Creates a text-only command and records its shortcut without adding image margins.</summary>
         private static ToolStripMenuItem CreateTextMenuItem(
             string text,
             Keys shortcutKeys,
@@ -210,6 +213,7 @@ namespace MinimalSoundEditor
             return item;
         }
 
+        /// <summary>Recursively removes icon gutters so every menu stays compact and visually consistent.</summary>
         private static void RemoveMenuImageMargins(ToolStripMenuItem item)
         {
             if (item.DropDown is ToolStripDropDownMenu dropDown)
@@ -225,6 +229,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Mirrors document, selection, playback, and recording state into menu enabled/checked values.</summary>
         private void UpdateMenuOnlyUi()
         {
             bool hasAudio = _currentSamples != null && _currentSamples.Length > 0;
@@ -275,6 +280,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Changes the transport command text so the menu always describes the next action.</summary>
         private void UpdateMenuPlaybackText()
         {
             if (_miPlaybackPlay == null)

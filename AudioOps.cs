@@ -2,8 +2,10 @@ using System;
 
 namespace MinimalSoundEditor
 {
+    /// <summary>Pure sample-array operations used by the non-destructive batch workflow.</summary>
     internal static class AudioOps
     {
+        /// <summary>Scales a copy of the signal so its highest absolute sample reaches just below 0 dBFS.</summary>
         public static float[] Normalize(float[] samples)
         {
             if (samples.Length == 0) return samples;
@@ -25,6 +27,7 @@ namespace MinimalSoundEditor
 
             return outS;
         }
+        /// <summary>Trims leading and trailing silence and reports the removed start offset for video synchronization.</summary>
         public static (float[] Trimmed, int RemovedStartSamples) TrimSilenceWithInfo(float[] samples, float threshold)
         {
             if (samples.Length == 0) return (samples, 0);
@@ -49,6 +52,7 @@ namespace MinimalSoundEditor
             return (outS, start);
         }
 
+        /// <summary>Returns only the audible range when the caller does not need the removed start offset.</summary>
         public static float[] TrimSilence(float[] samples, float threshold)
         {
             if (samples.Length == 0) return samples;

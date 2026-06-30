@@ -14,6 +14,10 @@ using System.Windows.Forms;
 
 namespace MinimalSoundEditor
 {
+    /// <summary>
+    /// Main editor window. This partial file coordinates UI events, selection edits, playback,
+    /// video-preview integration, and the unified export workflow.
+    /// </summary>
     public partial class MainForm : Form
     {
         private ContextMenuStrip _detailContextMenu;
@@ -24,6 +28,7 @@ namespace MinimalSoundEditor
         private const int MaxRecentFiles = 8;
         private readonly List<string> _recentFiles = new();
 
+        // Video state is optional: audio-only files leave these fields empty.
         private VideoRenderForm? _videoPreview;
         private string? _currentVideoPath;
         private string? _originalVideoPath; // ✅ merkt sich das Original-MP4 (für Export-Quelle)
@@ -39,6 +44,7 @@ namespace MinimalSoundEditor
             Cancel
         }
 
+        /// <summary>Uses the icon embedded in the executable so the window, taskbar, and installer branding agree.</summary>
         private void ApplyApplicationIcon()
         {
             try
@@ -53,6 +59,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Initializes the designer controls first, then connects the editor subsystems and persisted settings.</summary>
         public MainForm()
         {
             // 1) Designer-Init
@@ -205,6 +212,7 @@ namespace MinimalSoundEditor
             EnableHoverZoom(_btnVideoPreview);
         }
 
+        /// <summary>Builds selection-oriented commands that are useful directly on the detailed waveform.</summary>
         private void InitDetailContextMenu()
         {
             _detailContextMenu = new ContextMenuStrip();
@@ -298,6 +306,7 @@ namespace MinimalSoundEditor
     ".wav", ".mp3", ".flac", ".aiff", ".wma", ".m4a", ".aac", ".mp4"
 };
 
+        /// <summary>Accepts supported audio/video files over both waveform controls and the form itself.</summary>
         private void MainForm_DragEnter(object sender, DragEventArgs e)
         {
             if (!e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -320,6 +329,7 @@ namespace MinimalSoundEditor
                 e.Effect = DragDropEffects.None;
         }
 
+        /// <summary>Routes a dropped file through the same unsaved-change and loading checks as File/Open.</summary>
         private void MainForm_DragDrop(object sender, DragEventArgs e)
         {
             if (!e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -384,6 +394,7 @@ namespace MinimalSoundEditor
         private DateTime _lastVideoSyncUtc = DateTime.MinValue;
         private const int VideoSyncMinIntervalMs = 120;
 
+        /// <summary>Creates or refreshes the detachable FFmpeg-backed frame preview at the current locator.</summary>
         private void OpenVideoPreview(string file)
         {
             _currentVideoPath = file; // ✅ damit SyncVideoPreview nicht sofort aussteigt
@@ -412,6 +423,7 @@ namespace MinimalSoundEditor
                 : _playbackSamplePosition / (double)_currentSampleRate;
         }
 
+        /// <summary>Protects edited samples before replacing the current document with another file.</summary>
         private bool CheckUnsavedChangesBeforeOpen(string newFilePath)
         {
             // Wenn nichts geladen oder nichts geändert wurde -> kein Dialog
@@ -444,6 +456,7 @@ namespace MinimalSoundEditor
         }
 
 
+        /// <summary>Keeps selection, locator, and duration feedback synchronized after navigation or editing.</summary>
         private void UpdateStatusBar()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -527,6 +540,7 @@ namespace MinimalSoundEditor
         }
 
 
+        /// <summary>Fits the normalized detail selection into the visible range without changing audio.</summary>
         private void ZoomSelection()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -571,6 +585,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Replaces selected samples with silence while preserving duration and undo history.</summary>
         private void MuteSelection()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -619,6 +634,7 @@ namespace MinimalSoundEditor
             UpdateWindowTitle();
         }
 
+        /// <summary>Inserts a silence block before the selection and shifts the selection to its new location.</summary>
         private void InsertSilenceBeforeSelection()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -688,6 +704,7 @@ namespace MinimalSoundEditor
             UpdateWindowTitle();
         }
 
+        /// <summary>Inserts a silence block after the selection without moving the selected audio.</summary>
         private void InsertSilenceAfterSelection()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -756,6 +773,7 @@ namespace MinimalSoundEditor
         }
 
 
+        /// <summary>Prompts for a media file and dispatches MP4 files through their audio-extraction workflow.</summary>
         private void BtnOpen_Click(object sender, EventArgs e)
         {
             using var ofd = new OpenFileDialog
@@ -790,6 +808,7 @@ namespace MinimalSoundEditor
                     MessageBoxIcon.Error);
             }
         }
+        /// <summary>Extracts editable audio while retaining the original MP4 as the later remux source.</summary>
         private void OpenVideoFile(string mp4Path)
         {
             _originalVideoPath = mp4Path;  // ✅ NEU
@@ -904,6 +923,7 @@ namespace MinimalSoundEditor
             UpdateWindowTitle();
         }
 
+        /// <summary>Creates a positioned sample provider and starts playback from the current locator or loop selection.</summary>
         private void BtnPlay_Click(object sender, EventArgs e)
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1012,6 +1032,7 @@ namespace MinimalSoundEditor
             Undo();
         }
         // Tastatur-Shortcuts
+        /// <summary>Centralizes single-key transport/navigation shortcuts that ToolStrip shortcut handling cannot represent.</summary>
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
 
@@ -1171,6 +1192,7 @@ namespace MinimalSoundEditor
         /// Bewegt den Playhead um eine gegebene Anzahl Samples, wenn nicht abgespielt wird.
         /// Scrollt den Detail-View mit, falls der Playhead den sichtbaren Bereich verlässt.
         /// </summary>
+        /// <summary>Moves the locator by a relative sample count and restarts playback only when required.</summary>
         private bool MoveLocatorBy(int deltaSamples)
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1211,6 +1233,7 @@ namespace MinimalSoundEditor
         /// Passt VisibleStartSample im Detail-View so an, dass der Playhead im Sichtfenster liegt.
         /// Aktualisiert auch das Fenster im Overview.
         /// </summary>
+        /// <summary>Scrolls the detailed view just enough to keep auto-follow useful without constant recentering.</summary>
         private void EnsurePlayheadVisibleInDetail()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1353,6 +1376,7 @@ namespace MinimalSoundEditor
             RunUnifiedExport(forceWholeTrack: false);
         }
 
+        /// <summary>Implements the single Export command: active selection by default, otherwise the complete track.</summary>
         private bool RunUnifiedExport(bool forceWholeTrack)
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1478,6 +1502,7 @@ namespace MinimalSoundEditor
         /// Aktualisiert Overview/Detail-View, Selektion, Playhead und UI,
         /// nachdem _currentSamples im ausgewählten Bereich verändert wurden.
         /// </summary>
+        /// <summary>Applies shared post-edit bookkeeping so both views, locator, metadata, and video stay synchronized.</summary>
         private void RefreshViewsAfterEditingSelection(
             int selectionStart,
             int selectionEnd,
@@ -1773,6 +1798,7 @@ namespace MinimalSoundEditor
                     MessageBoxIcon.Error);
             }
         }
+        /// <summary>Lets users choose whether an edited MP4 session exports audio, remuxed video, or both.</summary>
         private Mp4SaveChoice AskMp4SaveChoice()
         {
             using var dlg = new Form
@@ -1813,6 +1839,7 @@ namespace MinimalSoundEditor
             dlg.ShowDialog(this);
             return choice;
         }
+        /// <summary>Coordinates the multi-output MP4 export while reusing the normal audio export dialogs.</summary>
         private bool ExportMp4Workflow()
         {
             var choice = AskMp4SaveChoice();
@@ -1910,6 +1937,7 @@ namespace MinimalSoundEditor
             path = sfd.FileName;
             return true;
         }
+        /// <summary>Resolves the packaged FFmpeg binary relative to the application directory.</summary>
         private string GetFfmpegPath()
         {
             // gleiche Logik wie im VideoPreview:
@@ -1919,6 +1947,7 @@ namespace MinimalSoundEditor
             return ffmpeg;
         }
 
+        /// <summary>Writes the current samples to a temporary WAV and remuxes them with the original video stream.</summary>
         private void ExportMp4WithEditedAudio(string outputMp4Path)
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -2032,6 +2061,7 @@ namespace MinimalSoundEditor
 
             _videoPreview.Location = new Point(x, y);
         }
+        /// <summary>Refreshes the preview after edits that change timing or move the locator.</summary>
         private void ResyncVideoAfterAudioEdit()
         {
             if (_videoPreview == null || _videoPreview.IsDisposed) return;

@@ -104,6 +104,7 @@ namespace MinimalSoundEditor
 
         // === Konstruktor =================================================
 
+        /// <summary>Edits the supplied theme objects directly so changes are visible in the main window immediately.</summary>
         public ThemeSettingsForm(ThemeDefinition lightTheme, ThemeDefinition darkTheme, ThemeMode currentMode)
         {
             _lightTheme = lightTheme;
@@ -133,6 +134,7 @@ namespace MinimalSoundEditor
 
         // === UI-Aufbau ===================================================
 
+        /// <summary>Builds the color editor dynamically to keep all theme fields aligned and easy to extend.</summary>
         private void BuildUi()
         {
             int margin = 12;
@@ -291,6 +293,7 @@ namespace MinimalSoundEditor
 
         // === JSON laden / speichern =====================================
 
+        /// <summary>Loads named themes from the shared user settings file without replacing in-memory built-ins.</summary>
         private void LoadJsonModel()
         {
             string path = GetThemeDefaultsFilePath();
@@ -318,6 +321,7 @@ namespace MinimalSoundEditor
                 _jsonModel.Dark = ThemeToModel(_darkTheme);
         }
 
+        /// <summary>Persists named themes and current built-in colors after every confirmed edit.</summary>
         private void SaveJsonModel()
         {
             string path = GetThemeDefaultsFilePath();
@@ -351,6 +355,7 @@ namespace MinimalSoundEditor
 
         // === Theme-Auswahl ==============================================
 
+        /// <summary>Switches between built-in and named themes while guarding against recursive UI updates.</summary>
         private void OnThemeSelectionChanged(object sender, EventArgs e)
         {
             if (_isUpdatingUi) return;
@@ -386,6 +391,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Creates a named copy so users can experiment without altering the source preset.</summary>
         private void OnCopyThemeClick(object sender, EventArgs e)
         {
             var t = GetActiveTheme();
@@ -522,6 +528,7 @@ namespace MinimalSoundEditor
             _isUpdatingUi = false;
         }
 
+        /// <summary>Applies a selected color, refreshes the preview, and persists the updated theme.</summary>
         private void PickColor(Button btn, Action<ThemeDefinition, Color> apply)
         {
             using (var dlg = new ColorDialog())
@@ -587,6 +594,7 @@ namespace MinimalSoundEditor
         private void OnButtonBorderClick(object sender, EventArgs e)
             => PickColor(_btnButtonBorder, (t, c) => t.ButtonBorder = c);
 
+        /// <summary>Restores only the selected built-in theme, leaving custom named themes untouched.</summary>
         private void ResetCurrentThemeToDefaults()
         {
             // nur Basis-Themes haben "Defaults"
@@ -604,6 +612,7 @@ namespace MinimalSoundEditor
                 _jsonModel.Dark = ThemeToModel(_darkTheme);
         }
 
+        /// <summary>Opens the settings file for advanced manual editing after ensuring it exists.</summary>
         private void OpenThemeJson()
         {
             try

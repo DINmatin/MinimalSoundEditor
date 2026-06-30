@@ -11,8 +11,13 @@ using System.Reflection;
 
 namespace MinimalSoundEditor
 {
+    /// <summary>
+    /// Displays the running assembly version and the main third-party audio dependency.
+    /// Keeping the version lookup dynamic prevents the dialog from drifting from the build metadata.
+    /// </summary>
     public partial class AboutForm : Form
     {
+        /// <summary>Builds the About text from the currently executing assembly.</summary>
         public AboutForm()
         {
             InitializeComponent();

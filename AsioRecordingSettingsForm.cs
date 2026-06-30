@@ -7,6 +7,10 @@ using System.Windows.Forms;
 
 namespace MinimalSoundEditor
 {
+    /// <summary>
+    /// Small recording console that selects an ASIO source, previews its level, and delegates
+    /// actual recording ownership to MainForm through start/stop events.
+    /// </summary>
     internal sealed class AsioRecordingSettingsForm : Form
     {
         private readonly ComboBox _driverBox = new();
@@ -23,6 +27,7 @@ namespace MinimalSoundEditor
         private readonly System.Windows.Forms.Timer _levelUiTimer = new() { Interval = 50 };
         private readonly System.Windows.Forms.Timer _previewRestartTimer = new() { Interval = 180 };
 
+        // Preview capture is deliberately separate from the real recorder so metering never stores audio.
         private AsioOut? _previewRecorder;
         private float[]? _previewCaptureBuffer;
         private int _previewPeakBits;
@@ -42,6 +47,7 @@ namespace MinimalSoundEditor
         public int SampleRate => _sampleRateBox.SelectedItem is int value ? value : 48000;
         public bool IsRecording => _recording;
 
+        /// <summary>Restores the last-used device choices and prepares the live input meter.</summary>
         public AsioRecordingSettingsForm(
             string? preferredDriver,
             int preferredInputOffset,
@@ -81,6 +87,7 @@ namespace MinimalSoundEditor
             };
         }
 
+        /// <summary>Creates the compact studio controls in code so the dialog remains self-contained.</summary>
         private void BuildUi()
         {
             var driverLabel = new Label
@@ -208,6 +215,7 @@ namespace MinimalSoundEditor
             CancelButton = _closeButton;
         }
 
+        /// <summary>Switches the dialog between editable preview mode and the locked red recording state.</summary>
         public void SetRecordingState(bool recording)
         {
             _recording = recording;
@@ -249,6 +257,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Receives the real recorder peak and elapsed time for the live REC display.</summary>
         public void UpdateRecordingLevel(float peak, TimeSpan elapsed)
         {
             if (!_recording || _isClosing)
@@ -261,6 +270,7 @@ namespace MinimalSoundEditor
                 $"• Input {InputChannelOffset + 1} • {SampleRate} Hz • Mono";
         }
 
+        /// <summary>Validates settings before raising start/stop requests; MainForm owns the audio buffers.</summary>
         private void ToggleRecording()
         {
             if (_recording)
@@ -295,6 +305,7 @@ namespace MinimalSoundEditor
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
+        /// <summary>Enumerates installed ASIO drivers and prefers the remembered or MOTU entry.</summary>
         private void LoadDrivers()
         {
             try
@@ -333,6 +344,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Reopens the selected driver briefly to discover its current input-channel count.</summary>
         private void ReloadInputs()
         {
             if (_recording)
@@ -373,6 +385,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Debounces rapid device changes so the ASIO driver is not reopened for every UI event.</summary>
         private void ScheduleInputPreviewRestart()
         {
             if (_isClosing || _recording || !Visible)
@@ -382,6 +395,7 @@ namespace MinimalSoundEditor
             _previewRestartTimer.Start();
         }
 
+        /// <summary>Starts one-channel, record-only ASIO capture used exclusively for the level meter.</summary>
         private void StartInputPreview()
         {
             StopInputPreview();
@@ -445,6 +459,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Detaches callbacks before disposing the driver to avoid late events touching a closed dialog.</summary>
         private void StopInputPreview()
         {
             _previewRestartTimer.Stop();
@@ -468,6 +483,7 @@ namespace MinimalSoundEditor
             SetInputLevelUi(0f);
         }
 
+        /// <summary>Calculates only the buffer peak and publishes it atomically to the UI timer.</summary>
         private void PreviewRecorder_AudioAvailable(object? sender, AsioAudioAvailableEventArgs e)
         {
             if (_previewRecorder == null || !ReferenceEquals(sender, _previewRecorder))
@@ -540,6 +556,7 @@ namespace MinimalSoundEditor
             SetInputLevelUi(_displayedPreviewPeak);
         }
 
+        /// <summary>Maps linear amplitude to a -60..0 dB meter and highlights warning/clip ranges.</summary>
         private void SetInputLevelUi(float peak)
         {
             peak = Math.Clamp(peak, 0f, 1f);
@@ -585,6 +602,7 @@ namespace MinimalSoundEditor
             _statusLabel.Text = message;
         }
 
+        /// <summary>Releases the preview before opening the vendor panel because many ASIO drivers are single-client.</summary>
         private void OpenControlPanel()
         {
             if (_recording || string.IsNullOrWhiteSpace(DriverName))
@@ -614,6 +632,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Checks that the selected driver can actually run at the requested sample rate.</summary>
         private bool ValidateSettingsForRecording()
         {
             if (string.IsNullOrWhiteSpace(DriverName) || _inputBox.SelectedIndex < 0)

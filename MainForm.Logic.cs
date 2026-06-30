@@ -16,6 +16,9 @@ namespace MinimalSoundEditor
 {
     public partial class MainForm : Form
     {
+        // Shared editor state and services live here: themes, loading, playback, undo, clipboard, and audio export.
+        // UI composition and ASIO capture are separated into MainForm.Menu.cs and MainForm.Recording.cs.
+
         // ✅ Singleton-Referenz für statische Helper (themes.json usw.)
         private static MainForm _instance;
 
@@ -36,6 +39,7 @@ namespace MinimalSoundEditor
             Dark
         }
 
+        /// <summary>Complete color definition for one light or dark editor theme.</summary>
         public class ThemeDefinition
         {
             public ThemeMode Mode { get; set; }
@@ -163,6 +167,7 @@ namespace MinimalSoundEditor
             btn.BackColor = Color.Transparent;
         }
 
+        /// <summary>Creates independent light/dark theme objects before persisted overrides are loaded.</summary>
         private void InitThemes()
         {
             _lightTheme = new ThemeDefinition { Waveform = new WaveformViewTheme() };
@@ -237,6 +242,7 @@ namespace MinimalSoundEditor
             _miThemeDark.Checked = _currentThemeMode == ThemeMode.Dark;
         }
 
+        /// <summary>Applies the active palette consistently to forms, controls, waveforms, and menu state.</summary>
         private void ApplyTheme()
         {
             var t = CurrentTheme;
@@ -513,6 +519,7 @@ namespace MinimalSoundEditor
 
 
 
+        /// <summary>Writes factory theme defaults once, or replaces them when explicitly requested.</summary>
         public static void SaveThemeDefaults(bool force = false)
         {
             string path = GetThemeDefaultsFilePath();
@@ -682,6 +689,7 @@ namespace MinimalSoundEditor
         }
 
 
+        /// <summary>Decodes a file into the editor's mono sample array and resets document/playback state.</summary>
         private void LoadAudioFile(string filePath)
         {
             using var reader = new NAudio.Wave.AudioFileReader(filePath);
@@ -780,6 +788,7 @@ namespace MinimalSoundEditor
             }
             UpdateStatusBar();
         }
+        /// <summary>Entry point used by Program for files supplied on the command line or by file association.</summary>
         public void LoadAudioFileFromExternal(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -824,6 +833,7 @@ namespace MinimalSoundEditor
         /// - true  = Schließen ist ok
         /// - false = Schließen abbrechen
         /// </summary>
+        /// <summary>Offers the unified export before allowing an edited document to be discarded on exit.</summary>
         private bool CheckUnsavedChangesBeforeClose()
         {
             // Wenn nichts geladen oder nichts geändert wurde -> kein nerviger Dialog
@@ -875,6 +885,7 @@ namespace MinimalSoundEditor
             return copy;
         }
 
+        /// <summary>Restores the last complete sample snapshot and refreshes all dependent UI state.</summary>
         private void Undo()
         {
             if (_undoStack.Count == 0)
@@ -992,6 +1003,7 @@ namespace MinimalSoundEditor
         }
 
         // Timer aktualisiert Playhead
+        /// <summary>Samples the audio device position on the UI timer and updates playhead, loop, and video preview.</summary>
         private void PlaybackTimer_Tick(object sender, EventArgs e)
         {
             if (_isClosing)
@@ -1060,6 +1072,7 @@ namespace MinimalSoundEditor
             JumpToSample(sampleIndex, restartIfPlaying: true);
             SyncVideoPreview(force: true);
         }
+        /// <summary>Sends locator changes to the preview while avoiding unnecessary FFmpeg frame renders.</summary>
         private void SyncVideoPreview(bool force)
         {
             if (_videoPreview == null || _videoPreview.IsDisposed) return;
@@ -1082,6 +1095,7 @@ namespace MinimalSoundEditor
 
         }
 
+        /// <summary>Normalizes the active selection to a user-selected target and records one undo snapshot.</summary>
         private void NormalizeSelection()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1321,6 +1335,7 @@ namespace MinimalSoundEditor
             UpdateWindowTitle();
         }
 
+        /// <summary>Routes one sample range to the native WAV writer or the FFmpeg-backed compressed exporters.</summary>
         private bool ExportSamplesToFile(float[] samples, int sampleRate, string filePath, AudioExportFormat format)
         {
             if (samples == null || samples.Length == 0)
@@ -1393,6 +1408,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Uses a temporary WAV so FFmpeg receives a simple, lossless input for FLAC encoding.</summary>
         private bool ExportFlacWithFfmpeg(float[] samples, int sampleRate, string filePath)
         {
             string tempWav = Path.Combine(
@@ -1461,6 +1477,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Uses the selected filename extension and filter to determine the requested export codec.</summary>
         private bool TryChooseExportFileAndFormat(
             bool selectionOnly,
             out string filePath,
@@ -1536,6 +1553,7 @@ namespace MinimalSoundEditor
             return true;
         }
 
+        /// <summary>Stores mutable settings under the user profile because Program Files is not writable at runtime.</summary>
         private string GetSettingsFilePath()
         {
             var dir = Path.Combine(
@@ -1545,6 +1563,7 @@ namespace MinimalSoundEditor
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "settings.json");
         }
+        /// <summary>Persists current themes, mode, recent files, and last-opened file as user settings.</summary>
         private void SaveThemeSettings()
         {
             var data = new Dictionary<string, string>
@@ -1572,6 +1591,7 @@ namespace MinimalSoundEditor
         }
 
 
+        /// <summary>Loads user settings and migrates the former executable-folder JSON on first run.</summary>
         private void LoadThemeSettings()
         {
             string path = GetSettingsFilePath();
@@ -1729,6 +1749,7 @@ namespace MinimalSoundEditor
         }
 
 
+        /// <summary>Moves both waveform playheads and optionally recreates playback from the new location.</summary>
         private void JumpToSample(int sampleIndex, bool restartIfPlaying)
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1863,6 +1884,7 @@ namespace MinimalSoundEditor
             };
         }
 
+        /// <summary>Copies the normalized detail selection into an internal floating-point clipboard.</summary>
         private void CopySelection()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1882,6 +1904,7 @@ namespace MinimalSoundEditor
             _clipboardSamples = new float[length];
             Array.Copy(_currentSamples, start, _clipboardSamples, 0, length);
         }
+        /// <summary>Inserts clipboard samples at the selection or locator and shifts following audio.</summary>
         private void PasteInsert()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -1980,6 +2003,7 @@ namespace MinimalSoundEditor
             UpdateWindowTitle();
         }
 
+        /// <summary>Replaces samples from the insertion point without changing track duration unless it reaches the end.</summary>
         private void PasteOverwrite()
         {
             if (_currentSamples == null || _currentSamples.Length == 0)
@@ -2084,6 +2108,7 @@ namespace MinimalSoundEditor
         }
 
 
+        /// <summary>Loads optional factory defaults before user-specific settings are layered on top.</summary>
         private void LoadThemeDefaultsFromFile()
         {
             string path = GetThemeDefaultsFilePath();
@@ -2170,6 +2195,7 @@ namespace MinimalSoundEditor
         /// <summary>
         /// Einfacher SampleProvider für float[]-Buffer, mit Startposition und Positionsabfrage.
         /// </summary>
+        /// <summary>One-shot sample provider used for ordinary playback from an arbitrary start position.</summary>
         public class SimpleArraySampleProvider : IPositionedSampleProvider
         {
             private readonly float[] _buffer;
@@ -2219,6 +2245,7 @@ namespace MinimalSoundEditor
             ZoomAll();
         }
 
+        /// <summary>Sample provider that wraps inside a fixed selection while reporting an absolute track position.</summary>
         public class LoopingArraySampleProvider : IPositionedSampleProvider
         {
             private readonly float[] _buffer;

@@ -6,6 +6,7 @@ using System.Windows.Forms;
 
 namespace MinimalSoundEditor
 {
+    /// <summary>Colors used by WaveformView; kept separate so themes can be serialized and swapped at runtime.</summary>
     public class WaveformViewTheme
     {
         public Color Background { get; set; }
@@ -17,6 +18,10 @@ namespace MinimalSoundEditor
         public Color TextColor { get; set; }
     }
 
+    /// <summary>
+    /// Custom waveform control with cached peak rendering, selection editing, horizontal navigation,
+    /// ruler/dB overlays, and an independently controlled playback playhead.
+    /// </summary>
     public class WaveformView : Control
     {
         private const int RULER_HEIGHT = 14;   // oben: Zeit-Leiste
@@ -59,6 +64,8 @@ namespace MinimalSoundEditor
             MoveSelection
         }
 
+        // Peak data is cached per horizontal view, then rendered into a bitmap cache.
+        // This keeps mouse movement and playhead updates from rescanning the complete sample array.
         // Peak-Cache + Bitmap-Cache
         private struct Peak
         {
@@ -186,6 +193,7 @@ namespace MinimalSoundEditor
                 Invalidate();
             }
         }
+        /// <summary>Replaces rendering colors and invalidates only the cached bitmap, not the peak data.</summary>
         public void ApplyTheme(WaveformViewTheme theme)
         {
             if (theme == null) return;
@@ -341,6 +349,7 @@ namespace MinimalSoundEditor
         /// <summary>
         /// Gibt die aktuelle (normalisierte) Selektion zurück.
         /// </summary>
+        /// <summary>Returns a normalized, non-empty selection regardless of drag direction.</summary>
         public bool TryGetSelection(out int startSample, out int endSample)
         {
             if (!HasSelection)
@@ -360,6 +369,7 @@ namespace MinimalSoundEditor
         // Rendering
         // --------------------------------------------------------------------
 
+        /// <summary>Composes cached waveform pixels with dynamic ruler, selection, highlight, and playhead overlays.</summary>
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -703,6 +713,7 @@ namespace MinimalSoundEditor
         private void MarkPeaksDirty() => _peaksDirty = true;
         private void MarkBitmapDirty() => _bitmapDirty = true;
 
+        /// <summary>Reduces all samples visible in each horizontal pixel to a min/max pair.</summary>
         private void RebuildPeaks(float[] samples, int totalSamples, int viewStart, int viewCount, int width)
         {
             if (width <= 0 || viewCount <= 0 || totalSamples <= 0)
@@ -763,6 +774,7 @@ namespace MinimalSoundEditor
             _peaksDirty = false;
         }
 
+        /// <summary>Renders the current peak cache once; lightweight overlays remain live in OnPaint.</summary>
         private void RebuildWaveformBitmap(int height)
         {
             int width = _cachedWidth;
@@ -834,6 +846,7 @@ namespace MinimalSoundEditor
             return (s, e);
         }
 
+        /// <summary>Maps a client X coordinate into the currently visible sample range.</summary>
         private int XToSampleIndex(int x)
         {
             int width = ClientSize.Width;
@@ -910,6 +923,7 @@ namespace MinimalSoundEditor
             Cursor = Cursors.Default;
             _isHoveringEdge = false;
         }
+        /// <summary>Uses the wheel for horizontal zoom/scroll while keeping the cursor position as the visual anchor.</summary>
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             base.OnMouseWheel(e);
@@ -1003,6 +1017,7 @@ namespace MinimalSoundEditor
             }
         }
 
+        /// <summary>Chooses between creating, resizing, or moving a selection based on edge hit-testing.</summary>
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
@@ -1097,6 +1112,7 @@ namespace MinimalSoundEditor
             Invalidate();
         }
 
+        /// <summary>Extends selection dragging beyond the visible edge by scrolling the detailed view.</summary>
         private void AutoScrollWhileDragging(MouseEventArgs e, int totalSamples)
         {
             if (!AllowHorizontalScroll)
@@ -1464,6 +1480,7 @@ namespace MinimalSoundEditor
         /// Setzt eine Selektion programmatisch (globale Sampleindices).
         /// Optional kann SelectionChanged ausgelöst werden.
         /// </summary>
+        /// <summary>Sets a clamped normalized selection and optionally notifies the owning editor.</summary>
         public void SetSelection(int startSample, int endSample, bool raiseEvent = true)
         {
             int total = _samples?.Length ?? 0;
@@ -1498,6 +1515,7 @@ namespace MinimalSoundEditor
         /// <summary>
         /// Schneidet die aktuelle Auswahl aus dem Sample-Puffer.
         /// </summary>
+        /// <summary>Removes the selected samples and records the removed range for locator correction by MainForm.</summary>
         public void DeleteSelection()
         {
             // ✅ reset "last delete" info

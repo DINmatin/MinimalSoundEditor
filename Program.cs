@@ -3,8 +3,10 @@ using System.Windows.Forms;
 
 namespace MinimalSoundEditor
 {
+    /// <summary>Application entry point and optional command-line file opener.</summary>
     internal static class Program
     {
+        /// <summary>Initializes WinForms, forwards the first command-line argument, and starts the main message loop.</summary>
         [STAThread]
         static void Main(string[] args)
         {
