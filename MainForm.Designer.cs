@@ -101,7 +101,6 @@ namespace MinimalSoundEditor
             // 
             // miFileOpen
             // 
-            miFileOpen.Image = Resource1.icon_openFile;
             miFileOpen.Name = "miFileOpen";
             miFileOpen.ShortcutKeys = Keys.Control | Keys.O;
             miFileOpen.Size = new Size(253, 22);
@@ -115,7 +114,6 @@ namespace MinimalSoundEditor
             // 
             // miFileSave
             // 
-            miFileSave.Image = Resource1.icon_save;
             miFileSave.Name = "miFileSave";
             miFileSave.ShortcutKeys = Keys.Control | Keys.S;
             miFileSave.Size = new Size(253, 22);
@@ -124,7 +122,6 @@ namespace MinimalSoundEditor
             // 
             // miFileSaveAs
             // 
-            miFileSaveAs.Image = Resource1.icon_saveAs;
             miFileSaveAs.Name = "miFileSaveAs";
             miFileSaveAs.ShortcutKeys = Keys.Control | Keys.Shift | Keys.S;
             miFileSaveAs.Size = new Size(253, 22);
@@ -138,7 +135,6 @@ namespace MinimalSoundEditor
             // 
             // miFileExportSel
             // 
-            miFileExportSel.Image = Resource1.icon_export;
             miFileExportSel.Name = "miFileExportSel";
             miFileExportSel.ShortcutKeys = Keys.Control | Keys.E;
             miFileExportSel.Size = new Size(253, 22);
@@ -207,7 +203,6 @@ namespace MinimalSoundEditor
             // 
             // _btnVideoPreview
             // 
-            _btnVideoPreview.BackgroundImage = Resource1.icon_videoPreview;
             _btnVideoPreview.BackgroundImageLayout = ImageLayout.Stretch;
             _btnVideoPreview.FlatAppearance.BorderSize = 0;
             _btnVideoPreview.FlatStyle = FlatStyle.Flat;
@@ -221,7 +216,6 @@ namespace MinimalSoundEditor
             // _chkAutoFollow
             // 
             _chkAutoFollow.Appearance = Appearance.Button;
-            _chkAutoFollow.BackgroundImage = Resource1.icon_follow_on;
             _chkAutoFollow.BackgroundImageLayout = ImageLayout.Stretch;
             _chkAutoFollow.FlatAppearance.BorderSize = 0;
             _chkAutoFollow.FlatAppearance.CheckedBackColor = Color.MediumPurple;
@@ -235,7 +229,6 @@ namespace MinimalSoundEditor
             // 
             // _btnNormalize
             // 
-            _btnNormalize.BackgroundImage = Resource1.icon_normalize;
             _btnNormalize.BackgroundImageLayout = ImageLayout.Stretch;
             _btnNormalize.FlatAppearance.BorderSize = 0;
             _btnNormalize.FlatStyle = FlatStyle.Flat;
@@ -248,7 +241,6 @@ namespace MinimalSoundEditor
             // 
             // _btnFadeOut
             // 
-            _btnFadeOut.BackgroundImage = Resource1.icon_fadeOut;
             _btnFadeOut.BackgroundImageLayout = ImageLayout.Stretch;
             _btnFadeOut.FlatAppearance.BorderSize = 0;
             _btnFadeOut.FlatStyle = FlatStyle.Flat;
@@ -261,7 +253,6 @@ namespace MinimalSoundEditor
             // 
             // _btnFadeIn
             // 
-            _btnFadeIn.BackgroundImage = Resource1.icon_fadeIn;
             _btnFadeIn.BackgroundImageLayout = ImageLayout.Stretch;
             _btnFadeIn.FlatAppearance.BorderSize = 0;
             _btnFadeIn.FlatStyle = FlatStyle.Flat;
@@ -274,7 +265,6 @@ namespace MinimalSoundEditor
             // 
             // _btnTrim
             // 
-            _btnTrim.BackgroundImage = Resource1.icon_trim;
             _btnTrim.BackgroundImageLayout = ImageLayout.Stretch;
             _btnTrim.FlatAppearance.BorderSize = 0;
             _btnTrim.FlatStyle = FlatStyle.Flat;
@@ -287,7 +277,6 @@ namespace MinimalSoundEditor
             // 
             // _btnCompress
             // 
-            _btnCompress.BackgroundImage = Resource1.icon_compress;
             _btnCompress.BackgroundImageLayout = ImageLayout.Stretch;
             _btnCompress.FlatAppearance.BorderSize = 0;
             _btnCompress.FlatStyle = FlatStyle.Flat;
@@ -300,7 +289,6 @@ namespace MinimalSoundEditor
             // 
             // _btnExport
             // 
-            _btnExport.BackgroundImage = Resource1.icon_export;
             _btnExport.BackgroundImageLayout = ImageLayout.Stretch;
             _btnExport.FlatAppearance.BorderSize = 0;
             _btnExport.FlatStyle = FlatStyle.Flat;
@@ -313,7 +301,6 @@ namespace MinimalSoundEditor
             // 
             // _btnSaveAs
             // 
-            _btnSaveAs.BackgroundImage = Resource1.icon_saveAs;
             _btnSaveAs.BackgroundImageLayout = ImageLayout.Stretch;
             _btnSaveAs.FlatAppearance.BorderSize = 0;
             _btnSaveAs.FlatStyle = FlatStyle.Flat;
@@ -326,7 +313,6 @@ namespace MinimalSoundEditor
             // 
             // _btnSave
             // 
-            _btnSave.BackgroundImage = Resource1.icon_save;
             _btnSave.BackgroundImageLayout = ImageLayout.Stretch;
             _btnSave.FlatAppearance.BorderSize = 0;
             _btnSave.FlatStyle = FlatStyle.Flat;
@@ -340,7 +326,6 @@ namespace MinimalSoundEditor
             // _chkLoop
             // 
             _chkLoop.Appearance = Appearance.Button;
-            _chkLoop.BackgroundImage = Resource1.icon_loop;
             _chkLoop.BackgroundImageLayout = ImageLayout.Stretch;
             _chkLoop.FlatAppearance.BorderSize = 0;
             _chkLoop.FlatAppearance.CheckedBackColor = Color.MediumPurple;
@@ -364,7 +349,6 @@ namespace MinimalSoundEditor
             // _btnTheme
             // 
             _btnTheme.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            _btnTheme.BackgroundImage = Resource1.icon_themes;
             _btnTheme.BackgroundImageLayout = ImageLayout.Stretch;
             _btnTheme.FlatAppearance.BorderSize = 0;
             _btnTheme.FlatStyle = FlatStyle.Flat;
@@ -377,7 +361,6 @@ namespace MinimalSoundEditor
             // 
             // _btnStop
             // 
-            _btnStop.BackgroundImage = Resource1.icon_stop;
             _btnStop.BackgroundImageLayout = ImageLayout.Stretch;
             _btnStop.FlatAppearance.BorderSize = 0;
             _btnStop.FlatStyle = FlatStyle.Flat;
@@ -390,7 +373,6 @@ namespace MinimalSoundEditor
             // 
             // _btnPlay
             // 
-            _btnPlay.BackgroundImage = Resource1.icon_play;
             _btnPlay.BackgroundImageLayout = ImageLayout.Stretch;
             _btnPlay.FlatAppearance.BorderSize = 0;
             _btnPlay.FlatStyle = FlatStyle.Flat;
@@ -403,7 +385,6 @@ namespace MinimalSoundEditor
             // 
             // _btnUndo
             // 
-            _btnUndo.BackgroundImage = Resource1.icon_undo;
             _btnUndo.BackgroundImageLayout = ImageLayout.Stretch;
             _btnUndo.FlatAppearance.BorderSize = 0;
             _btnUndo.FlatStyle = FlatStyle.Flat;
@@ -416,7 +397,6 @@ namespace MinimalSoundEditor
             // 
             // _btnDeleteSelection
             // 
-            _btnDeleteSelection.BackgroundImage = Resource1.icon_del;
             _btnDeleteSelection.BackgroundImageLayout = ImageLayout.Stretch;
             _btnDeleteSelection.FlatAppearance.BorderSize = 0;
             _btnDeleteSelection.FlatStyle = FlatStyle.Flat;
@@ -429,7 +409,6 @@ namespace MinimalSoundEditor
             // 
             // _btnOpen
             // 
-            _btnOpen.BackgroundImage = Resource1.icon_openFile;
             _btnOpen.BackgroundImageLayout = ImageLayout.Stretch;
             _btnOpen.FlatAppearance.BorderSize = 0;
             _btnOpen.FlatStyle = FlatStyle.Flat;
@@ -526,7 +505,6 @@ namespace MinimalSoundEditor
             // 
             // BtnBatch
             // 
-            BtnBatch.BackgroundImage = Resource1.icon_batch;
             BtnBatch.BackgroundImageLayout = ImageLayout.Stretch;
             BtnBatch.FlatAppearance.BorderSize = 0;
             BtnBatch.FlatStyle = FlatStyle.Flat;

@@ -114,11 +114,6 @@ namespace MinimalSoundEditor
             _chkLoop.CheckedChanged += (s, e) =>
             {
                 _loopEnabled = _chkLoop.Checked;
-
-                if (_chkLoop.Checked)
-                    _chkLoop.BackgroundImage = Resource1.icon_looping;
-                else
-                    _chkLoop.BackgroundImage = Resource1.icon_loop;
             };
 
             // Auto-Follow: Playhead beim Abspielen immer im Bild halten
@@ -128,12 +123,6 @@ namespace MinimalSoundEditor
             _chkAutoFollow.CheckedChanged += (s, e) =>
             {
                 _autoFollowEnabled = _chkAutoFollow.Checked;
-
-                // vorerst gleiche Icons wie beim Loop – tausche die Ressourcen später aus
-                if (_chkAutoFollow.Checked)
-                    _chkAutoFollow.BackgroundImage = Resource1.icon_follow_on;
-                else
-                    _chkAutoFollow.BackgroundImage = Resource1.icon_follow_off;
             };
 
 
@@ -201,7 +190,6 @@ namespace MinimalSoundEditor
         }
         private void InitVideoPreviewButton()
         {
-            _btnVideoPreview.BackgroundImage = Resource1.icon_videoPreview; // oder eigenes Preview-Icon
             _btnVideoPreview.BackgroundImageLayout = ImageLayout.Stretch;
             _btnVideoPreview.FlatStyle = FlatStyle.Flat;
             _btnVideoPreview.FlatAppearance.BorderSize = 0;
