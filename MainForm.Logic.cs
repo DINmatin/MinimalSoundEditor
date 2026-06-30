@@ -4,6 +4,7 @@ using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Text.Json;
@@ -90,6 +91,7 @@ namespace MinimalSoundEditor
         private enum AudioExportFormat
         {
             Wav,
+            Flac,
             Mp3,
             Aac // AAC in .m4a/.mp4 Container
         }
@@ -643,6 +645,10 @@ namespace MinimalSoundEditor
 
         void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            // Eine laufende ASIO-Aufnahme zuerst sauber beenden und als Clip übernehmen.
+            if (_isRecording)
+                StopAsioRecording(loadIntoEditor: true, showErrors: false);
+
             // 1) Vor dem echten Schließen prüfen, ob etwas gespeichert werden soll.
             //    Wenn der Benutzer "Abbrechen" wählt oder das Speichern abbricht,
             //    brechen wir das Schließen ab.
@@ -830,8 +836,8 @@ namespace MinimalSoundEditor
 
             var result = MessageBox.Show(
                 this,
-                $"Möchtest du die Änderungen an \"{fileName}\" speichern, bevor du die App schließt?",
-                "Änderungen speichern?",
+                $"Möchtest du die Änderungen an \"{fileName}\" exportieren, bevor du die App schließt?",
+                "Änderungen exportieren?",
                 MessageBoxButtons.YesNoCancel,
                 MessageBoxIcon.Question,
                 MessageBoxDefaultButton.Button1);
@@ -848,21 +854,8 @@ namespace MinimalSoundEditor
                 return true;
             }
 
-            // result == Yes -> speichern
-            bool wasDirty = _isDirty;
-
-            bool needSaveAs =
-                string.IsNullOrEmpty(_currentFilePath) ||
-                !_currentFilePath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase);
-
-            SaveCurrentFile(needSaveAs);
-
-            // Wenn _isDirty danach IMMER noch true ist, hat der Benutzer
-            // vermutlich den SaveFileDialog abgebrochen -> nicht schließen.
-            if (wasDirty && _isDirty)
-                return false;
-
-            return true;
+            // result == Yes -> den ganzen Clip exportieren.
+            return ExportWholeTrackForUnsavedChanges();
         }
 
 
@@ -1328,148 +1321,218 @@ namespace MinimalSoundEditor
             UpdateWindowTitle();
         }
 
-        private void ExportSamplesToFile(float[] samples, int sampleRate, string filePath, AudioExportFormat format)
+        private bool ExportSamplesToFile(float[] samples, int sampleRate, string filePath, AudioExportFormat format)
         {
             if (samples == null || samples.Length == 0)
-                return;
+                return false;
 
-            switch (format)
+            try
             {
-                case AudioExportFormat.Wav:
-                    {
-                        // WAV bleibt wie gehabt: 32-bit float, mono
+                switch (format)
+                {
+                    case AudioExportFormat.Wav:
+                        // WAV: 32-bit float, mono
                         using (var writer = new WaveFileWriter(
                                    filePath,
                                    WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1)))
                         {
                             writer.WriteSamples(samples, 0, samples.Length);
                         }
-                        break;
-                    }
+                        return true;
 
-                case AudioExportFormat.Mp3:
-                case AudioExportFormat.Aac:
-                    {
-                        // Media Foundation initialisieren (idempotent)
+                    case AudioExportFormat.Flac:
+                        return ExportFlacWithFfmpeg(samples, sampleRate, filePath);
+
+                    case AudioExportFormat.Mp3:
+                    case AudioExportFormat.Aac:
                         MediaFoundationApi.Startup();
 
-                        // 1) float[] -> ISampleProvider (mono)
                         var monoProvider = new SimpleArraySampleProvider(samples, sampleRate, 1, 0);
-
-                        // 2) Mono -> Stereo duplizieren (bessere Kompatibilität)
                         var stereoProvider = new MonoToStereoSampleProvider(monoProvider);
-
-                        // 3) float -> 16-bit PCM
                         var wave16 = new SampleToWaveProvider16(stereoProvider);
 
-                        // 4) Ziel-Samplerate festlegen: 44100 Hz ist safest
                         int targetRate = 44100;
                         var targetFormat = new WaveFormat(targetRate, 16, 2);
-
                         IWaveProvider source = wave16;
+                        int bitrate = 192000;
 
-                        // Resampling nur, wenn nötig
                         if (wave16.WaveFormat.SampleRate != targetRate ||
                             wave16.WaveFormat.Channels != 2 ||
                             wave16.WaveFormat.BitsPerSample != 16)
                         {
-                            using (var resampler = new MediaFoundationResampler(source, targetFormat))
-                            {
-                                resampler.ResamplerQuality = 60;
+                            using var resampler = new MediaFoundationResampler(source, targetFormat);
+                            resampler.ResamplerQuality = 60;
 
-                                int bitrate = 192000; // 192 kbit/s
-
-                                try
-                                {
-                                    if (format == AudioExportFormat.Mp3)
-                                        MediaFoundationEncoder.EncodeToMp3(resampler, filePath, bitrate);
-                                    else
-                                        MediaFoundationEncoder.EncodeToAac(resampler, filePath, bitrate);
-                                }
-                                catch (Exception ex)
-                                {
-                                    MessageBox.Show(this,
-                                        "Fehler beim Encodieren:\n" + ex.Message,
-                                        "Export",
-                                        MessageBoxButtons.OK,
-                                        MessageBoxIcon.Error);
-                                }
-                            }
+                            if (format == AudioExportFormat.Mp3)
+                                MediaFoundationEncoder.EncodeToMp3(resampler, filePath, bitrate);
+                            else
+                                MediaFoundationEncoder.EncodeToAac(resampler, filePath, bitrate);
                         }
                         else
                         {
-                            // dürfte praktisch nie hier landen, aber der Vollständigkeit halber
-                            int bitrate = 192000;
-
-                            try
-                            {
-                                if (format == AudioExportFormat.Mp3)
-                                    MediaFoundationEncoder.EncodeToMp3(source, filePath, bitrate);
-                                else
-                                    MediaFoundationEncoder.EncodeToAac(source, filePath, bitrate);
-                            }
-                            catch (Exception ex)
-                            {
-                                MessageBox.Show(this,
-                                    "Fehler beim Encodieren:\n" + ex.Message,
-                                    "Export",
-                                    MessageBoxButtons.OK,
-                                    MessageBoxIcon.Error);
-                            }
+                            if (format == AudioExportFormat.Mp3)
+                                MediaFoundationEncoder.EncodeToMp3(source, filePath, bitrate);
+                            else
+                                MediaFoundationEncoder.EncodeToAac(source, filePath, bitrate);
                         }
 
-                        break;
-                    }
+                        return true;
+
+                    default:
+                        throw new NotSupportedException("Unbekanntes Exportformat.");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "Fehler beim Exportieren:\n" + ex.Message,
+                    "Export",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private bool ExportFlacWithFfmpeg(float[] samples, int sampleRate, string filePath)
+        {
+            string tempWav = Path.Combine(
+                Path.GetTempPath(),
+                "mse_flac_" + Guid.NewGuid().ToString("N") + ".wav");
+
+            try
+            {
+                using (var writer = new WaveFileWriter(
+                           tempWav,
+                           WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1)))
+                {
+                    writer.WriteSamples(samples, 0, samples.Length);
+                }
+
+                string ffmpeg = GetFfmpegPath();
+                var psi = new ProcessStartInfo
+                {
+                    FileName = ffmpeg,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true
+                };
+
+                psi.ArgumentList.Add("-y");
+                psi.ArgumentList.Add("-hide_banner");
+                psi.ArgumentList.Add("-loglevel");
+                psi.ArgumentList.Add("error");
+                psi.ArgumentList.Add("-i");
+                psi.ArgumentList.Add(tempWav);
+                psi.ArgumentList.Add("-c:a");
+                psi.ArgumentList.Add("flac");
+                psi.ArgumentList.Add("-compression_level");
+                psi.ArgumentList.Add("8");
+                psi.ArgumentList.Add(filePath);
+
+                using Process? process = Process.Start(psi);
+                if (process == null)
+                    throw new InvalidOperationException("ffmpeg konnte nicht gestartet werden.");
+
+                string stderr = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                if (process.ExitCode != 0 || !File.Exists(filePath))
+                {
+                    string details = string.IsNullOrWhiteSpace(stderr)
+                        ? $"ffmpeg ExitCode: {process.ExitCode}"
+                        : stderr.Trim();
+                    throw new InvalidOperationException(
+                        "FLAC-Export mit ffmpeg fehlgeschlagen.\n" + details);
+                }
+
+                return true;
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(tempWav))
+                        File.Delete(tempWav);
+                }
+                catch
+                {
+                    // Temporäre Datei wird beim nächsten Windows-Cleanup entfernt.
+                }
             }
         }
 
         private bool TryChooseExportFileAndFormat(
-    bool selectionOnly,
-    out string filePath,
-    out AudioExportFormat format)
+            bool selectionOnly,
+            out string filePath,
+            out AudioExportFormat format)
         {
-            filePath = null;
+            filePath = string.Empty;
             format = AudioExportFormat.Wav;
 
-            string defaultName = selectionOnly ? "selection.wav" : "audio.wav";
+            string sourceBaseName = "audio";
+            string sourceExtension = ".wav";
 
             if (!string.IsNullOrEmpty(_currentFilePath))
             {
-                var baseName = Path.GetFileNameWithoutExtension(_currentFilePath);
-                defaultName = selectionOnly ? baseName + "_selection.wav" : baseName + "_edited.wav";
+                sourceBaseName = Path.GetFileNameWithoutExtension(_currentFilePath);
+                sourceExtension = Path.GetExtension(_currentFilePath).ToLowerInvariant();
+            }
+            else if (!string.IsNullOrEmpty(_originalVideoPath))
+            {
+                sourceBaseName = Path.GetFileNameWithoutExtension(_originalVideoPath);
             }
 
-            using (var sfd = new SaveFileDialog())
+            int filterIndex = sourceExtension switch
             {
-                sfd.Title = selectionOnly ? "Bereich exportieren als..." : "Speichern unter...";
-                sfd.FileName = defaultName;
-                sfd.Filter =
+                ".flac" => 2,
+                ".mp3" => 3,
+                ".m4a" or ".mp4" or ".aac" => 4,
+                _ => 1
+            };
+
+            string suffix = selectionOnly ? "_selection" : "_edited";
+            string defaultExtension = filterIndex switch
+            {
+                2 => ".flac",
+                3 => ".mp3",
+                4 => ".m4a",
+                _ => ".wav"
+            };
+
+            using var sfd = new SaveFileDialog
+            {
+                Title = selectionOnly ? "Auswahl exportieren..." : "Alles exportieren...",
+                FileName = sourceBaseName + suffix + defaultExtension,
+                Filter =
                     "WAV (*.wav)|*.wav|" +
+                    "FLAC (*.flac)|*.flac|" +
                     "MP3 (*.mp3)|*.mp3|" +
-                    "AAC/MP4 (*.m4a;*.mp4)|*.m4a;*.mp4";
+                    "AAC/M4A (*.m4a)|*.m4a",
+                FilterIndex = filterIndex,
+                AddExtension = true,
+                OverwritePrompt = true
+            };
 
-                if (sfd.ShowDialog(this) != DialogResult.OK)
-                    return false;
+            if (sfd.ShowDialog(this) != DialogResult.OK)
+                return false;
 
-                filePath = sfd.FileName;
-            }
-
-            var ext = Path.GetExtension(filePath)?.ToLowerInvariant();
-            switch (ext)
+            format = sfd.FilterIndex switch
             {
-                case ".mp3":
-                    format = AudioExportFormat.Mp3;
-                    break;
-                case ".m4a":
-                case ".mp4":
-                case ".aac":
-                    format = AudioExportFormat.Aac;
-                    break;
-                default:
-                    format = AudioExportFormat.Wav;
-                    break;
-            }
+                2 => AudioExportFormat.Flac,
+                3 => AudioExportFormat.Mp3,
+                4 => AudioExportFormat.Aac,
+                _ => AudioExportFormat.Wav
+            };
 
+            string wantedExtension = format switch
+            {
+                AudioExportFormat.Flac => ".flac",
+                AudioExportFormat.Mp3 => ".mp3",
+                AudioExportFormat.Aac => ".m4a",
+                _ => ".wav"
+            };
+
+            filePath = Path.ChangeExtension(sfd.FileName, wantedExtension) ?? sfd.FileName;
             return true;
         }
 

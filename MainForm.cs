@@ -33,7 +33,7 @@ namespace MinimalSoundEditor
 
         private enum Mp4SaveChoice
         {
-            WavOnly,
+            AudioOnly,
             VideoWithAudio,
             Both,
             Cancel
@@ -44,7 +44,10 @@ namespace MinimalSoundEditor
             // 1) Designer-Init
             InitializeComponent();
 
-            // 2) Logik-Init
+            // 2) Icon-Leiste entfernen und alle Befehle ins Textmenue verschieben
+            BuildMenuOnlyUi();
+
+            // 3) Logik-Init
             _instance = this;
 
             this.Shown += MainForm_Shown;
@@ -143,8 +146,6 @@ namespace MinimalSoundEditor
             MakeToolbarButtonLookFlat(_btnPlay);
             MakeToolbarButtonLookFlat(_btnStop);
             MakeToolbarButtonLookFlat(_btnTheme);
-            MakeToolbarButtonLookFlat(_btnSave);
-            MakeToolbarButtonLookFlat(_btnSaveAs);
             MakeToolbarButtonLookFlat(_btnExport);
             MakeToolbarButtonLookFlat(_btnTrim);
             MakeToolbarButtonLookFlat(_btnNormalize);
@@ -161,8 +162,6 @@ namespace MinimalSoundEditor
             EnableHoverZoom(_btnPlay);
             EnableHoverZoom(_btnStop);
             EnableHoverZoom(_btnTheme);
-            EnableHoverZoom(_btnSave);
-            EnableHoverZoom(_btnSaveAs);
             EnableHoverZoom(_btnExport);
             EnableHoverZoom(_btnTrim);
             EnableHoverZoom(_btnNormalize);
@@ -173,6 +172,7 @@ namespace MinimalSoundEditor
             EnableHoverZoom(_btnVideoPreview);
 
             InitVideoPreviewButton();
+            InitAsioRecordingUi();
             this.Move += (_, __) => PositionVideoPreviewBottomLeft();
             this.Resize += (_, __) => PositionVideoPreviewBottomLeft(); // you already have Resize hooked; add inside handler too if preferred
 
@@ -267,10 +267,10 @@ namespace MinimalSoundEditor
             _detailContextMenu.Items.Add(silenceMenu);
             _detailContextMenu.Items.Add(new ToolStripSeparator());
 
-            // Export Selection
+            // Auswahl exportieren; ohne Auswahl wird der ganze Clip exportiert.
             _detailContextMenu.Items.Add(
                 new ToolStripMenuItem("Export...", null,
-                    (s, e) => ExportSelection()));
+                    (s, e) => ExportCommand(s, e)));
             //Donate
 
             _detailContextMenu.Items.Add(new ToolStripSeparator());
@@ -412,8 +412,8 @@ namespace MinimalSoundEditor
             var result = MessageBox.Show(
                 this,
                 $"Du hast ungespeicherte Änderungen an \"{currentName}\".\n\n" +
-                $"Möchtest du vor dem Öffnen von \"{newName}\" speichern?",
-                "Änderungen speichern?",
+                $"Möchtest du sie vor dem Öffnen von \"{newName}\" exportieren?",
+                "Änderungen exportieren?",
                 MessageBoxButtons.YesNoCancel,
                 MessageBoxIcon.Question,
                 MessageBoxDefaultButton.Button1);
@@ -424,20 +424,8 @@ namespace MinimalSoundEditor
             if (result == DialogResult.No)
                 return true;
 
-            // Yes -> speichern
-            bool wasDirty = _isDirty;
-
-            bool needSaveAs =
-                string.IsNullOrEmpty(_currentFilePath) ||
-                !_currentFilePath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase);
-
-            SaveCurrentFile(needSaveAs);
-
-            // Wenn danach noch dirty -> Save abgebrochen
-            if (wasDirty && _isDirty)
-                return false;
-
-            return true;
+            // Yes -> den ganzen Clip exportieren.
+            return ExportWholeTrackForUnsavedChanges();
         }
 
 
@@ -1019,6 +1007,17 @@ namespace MinimalSoundEditor
                 return true;
             }
 
+            // CTRL+R -> ASIO Record/Stop
+            if (keyData == (Keys.Control | Keys.R))
+            {
+                ToggleAsioRecording();
+                return true;
+            }
+
+            // Während der Aufnahme keine Editor-Shortcuts ausführen.
+            if (_isRecording)
+                return base.ProcessCmdKey(ref msg, keyData);
+
             // SPACE -> Play/Stop
             if (keyData == Keys.Space)
             {
@@ -1105,17 +1104,13 @@ namespace MinimalSoundEditor
                 return true;
             }
 
-            // CTRL+SHIFT+S -> Save As (Format wählen)
-            if (keyData == (Keys.Control | Keys.Shift | Keys.S))
+            // Alle bisherigen Speicher-/Export-Shortcuts führen zum gemeinsamen Export.
+            if (keyData == (Keys.Control | Keys.E) ||
+                keyData == (Keys.Control | Keys.S) ||
+                keyData == (Keys.Control | Keys.Shift | Keys.S) ||
+                keyData == (Keys.Control | Keys.Shift | Keys.E))
             {
-                SaveAsWithFormat(this, null);
-                return true;
-            }
-
-            // CTRL+SHIFT+E -> Export Selection As (Format wählen)
-            if (keyData == (Keys.Control | Keys.Shift | Keys.E))
-            {
-                ExportSelectionAs(this, null);
+                ExportCommand(this, EventArgs.Empty);
                 return true;
             }
 
@@ -1281,70 +1276,16 @@ namespace MinimalSoundEditor
             _overviewView.SetSelection(startSample, endSample, raiseEvent: false);
         }
 
+        // Alte Event-Namen bleiben als interne Kompatibilitäts-Wrapper bestehen.
+        // In der Oberfläche gibt es nur noch einen gemeinsamen Export-Befehl.
         private void SaveWithPrompt(object sender, EventArgs e)
         {
-            if (_currentSamples == null || _currentSamples.Length == 0)
-                return;
-
-            if (IsMp4Loaded())
-            {
-                SaveMp4Workflow();
-                return;
-            }
-
-            // Falls wir schon eine WAV-Datei haben: Nachfrage Overwrite/Rename
-            if (!string.IsNullOrEmpty(_currentFilePath) &&
-                _currentFilePath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
-            {
-                var result = MessageBox.Show(this,
-                    $"Datei überschreiben?\n{_currentFilePath}\n\n" +
-                    "Yes = überschreiben\nNo = unter neuem Namen speichern\nCancel = abbrechen",
-                    "Speichern",
-                    MessageBoxButtons.YesNoCancel,
-                    MessageBoxIcon.Question);
-
-                if (result == DialogResult.Cancel)
-                    return;
-
-                if (result == DialogResult.Yes)
-                {
-                    SaveCurrentFile(saveAs: false);
-                }
-                else if (result == DialogResult.No)
-                {
-                    SaveCurrentFile(saveAs: true);
-                }
-            }
-            else
-            {
-                // bisher keine oder kein WAV -> direkt „Speichern unter“
-                SaveCurrentFile(saveAs: true);
-            }
+            ExportCommand(sender, e);
         }
 
         private void SaveAsWithFormat(object sender, EventArgs e)
         {
-
-            if (_currentSamples == null || _currentSamples.Length == 0)
-                return;
-
-            if (IsMp4Loaded())
-            {
-                SaveMp4Workflow();
-                return;
-            }
-
-            if (!TryChooseExportFileAndFormat(selectionOnly: false,
-                    out string path, out AudioExportFormat format))
-                return;
-
-            ExportSamplesToFile(_currentSamples, _currentSampleRate, path, format);
-
-            // Nur wenn wir wirklich den „Haupttrack“ speichern:
-            _currentFilePath = path;
-            _isDirty = false;
-            UpdateWindowTitle();
-
+            ExportCommand(sender, e);
         }
         private void MakeToolbarButtonLookFlat(Button b)
         {
@@ -1383,34 +1324,80 @@ namespace MinimalSoundEditor
             {
                 _btnPlay.BackColor = theme.ButtonBack;
             }
+
+            UpdateMenuPlaybackText();
         }
 
         private void ExportSelectionAs(object sender, EventArgs e)
         {
+            ExportCommand(sender, e);
+        }
 
+        private void ExportCommand(object? sender, EventArgs? e)
+        {
+            RunUnifiedExport(forceWholeTrack: false);
+        }
+
+        private bool RunUnifiedExport(bool forceWholeTrack)
+        {
             if (_currentSamples == null || _currentSamples.Length == 0)
-                return;
+                return false;
 
-            if (!TryGetCurrentSelection(out int start, out int end))
+            float[] currentSamples = _currentSamples;
+            bool selectionOnly = false;
+            int start = 0;
+            int end = currentSamples.Length;
+
+            if (!forceWholeTrack &&
+                TryGetCurrentSelection(out int selectedStart, out int selectedEnd) &&
+                selectedEnd > selectedStart)
             {
-                MessageBox.Show(this, "Kein Bereich selektiert.", "Exportieren",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                selectionOnly = true;
+                start = selectedStart;
+                end = selectedEnd;
             }
 
-            int length = end - start;
-            if (length <= 0)
-                return;
+            // Ohne Auswahl bleibt der bisherige Video-Export erhalten.
+            if (!selectionOnly && IsMp4Loaded())
+            {
+                return ExportMp4Workflow();
+            }
 
-            if (!TryChooseExportFileAndFormat(selectionOnly: true,
+            float[] samplesToExport;
+            if (selectionOnly)
+            {
+                int length = end - start;
+                samplesToExport = new float[length];
+                Array.Copy(currentSamples, start, samplesToExport, 0, length);
+            }
+            else
+            {
+                samplesToExport = currentSamples;
+            }
+
+            if (!TryChooseExportFileAndFormat(selectionOnly,
                     out string path, out AudioExportFormat format))
-                return;
+            {
+                return false;
+            }
 
-            var sel = new float[length];
-            Array.Copy(_currentSamples, start, sel, 0, length);
+            if (!ExportSamplesToFile(samplesToExport, _currentSampleRate, path, format))
+                return false;
 
-            ExportSamplesToFile(sel, _currentSampleRate, path, format);
+            // Nur der Export des ganzen Clips gilt als Speichern des aktuellen Stands.
+            if (!selectionOnly)
+            {
+                _currentFilePath = path;
+                _isDirty = false;
+                UpdateWindowTitle();
+            }
 
+            return true;
+        }
+
+        private bool ExportWholeTrackForUnsavedChanges()
+        {
+            return RunUnifiedExport(forceWholeTrack: true);
         }
 
         private void miFileExit_Click(object sender, EventArgs e)
@@ -1445,8 +1432,8 @@ namespace MinimalSoundEditor
 
         private void _btnExport_Click(object sender, EventArgs e)
         {
-            // Aktuelle Selektion als separate Datei exportieren (Formatwahl)
-            ExportSelectionAs(this, e);
+            // Auswahl exportieren; ohne Auswahl den ganzen Clip.
+            ExportCommand(this, e);
         }
 
         private void _btnCompress_Click(object sender, EventArgs e)
@@ -1775,7 +1762,7 @@ namespace MinimalSoundEditor
         {
             using var dlg = new Form
             {
-                Text = "Speichern",
+                Text = "Exportieren",
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 StartPosition = FormStartPosition.CenterParent,
                 MinimizeBox = false,
@@ -1790,17 +1777,17 @@ namespace MinimalSoundEditor
                 Top = 12,
                 Width = 436,
                 Height = 44,
-                Text = "MP4 ist geöffnet. Was möchtest du speichern?",
+                Text = "MP4 ist geöffnet. Was möchtest du exportieren?",
             };
 
             Mp4SaveChoice choice = Mp4SaveChoice.Cancel;
 
-            var btnWav = new Button { Left = 12, Top = 70, Width = 210, Height = 32, Text = "Nur WAV (_edited)" };
+            var btnWav = new Button { Left = 12, Top = 70, Width = 210, Height = 32, Text = "Nur Audio..." };
             var btnVid = new Button { Left = 238, Top = 70, Width = 210, Height = 32, Text = "Video (mit Ton)" };
             var btnBoth = new Button { Left = 12, Top = 112, Width = 210, Height = 32, Text = "Beide" };
             var btnCancel = new Button { Left = 238, Top = 112, Width = 210, Height = 32, Text = "Abbrechen" };
 
-            btnWav.Click += (_, __) => { choice = Mp4SaveChoice.WavOnly; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
+            btnWav.Click += (_, __) => { choice = Mp4SaveChoice.AudioOnly; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
             btnVid.Click += (_, __) => { choice = Mp4SaveChoice.VideoWithAudio; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
             btnBoth.Click += (_, __) => { choice = Mp4SaveChoice.Both; dlg.DialogResult = DialogResult.OK; dlg.Close(); };
             btnCancel.Click += (_, __) => { choice = Mp4SaveChoice.Cancel; dlg.DialogResult = DialogResult.Cancel; dlg.Close(); };
@@ -1811,40 +1798,59 @@ namespace MinimalSoundEditor
             dlg.ShowDialog(this);
             return choice;
         }
-        private void SaveMp4Workflow()
+        private bool ExportMp4Workflow()
         {
             var choice = AskMp4SaveChoice();
             if (choice == Mp4SaveChoice.Cancel)
-                return;
+                return false;
 
-            bool savedAnything = false;
+            bool exportedAnything = false;
 
-            // 1) WAV speichern?
-            if (choice == Mp4SaveChoice.WavOnly || choice == Mp4SaveChoice.Both)
+            // 1) Audio exportieren? Das gemeinsame Formatfenster enthält auch FLAC.
+            if (choice == Mp4SaveChoice.AudioOnly || choice == Mp4SaveChoice.Both)
             {
-                if (!TryChooseWavPath(out string wavPath))
-                    return;
+                if (!TryChooseExportFileAndFormat(selectionOnly: false,
+                        out string audioPath, out AudioExportFormat audioFormat))
+                {
+                    return false;
+                }
 
-                ExportSamplesToFile(_currentSamples!, _currentSampleRate, wavPath, AudioExportFormat.Wav);
-                _currentFilePath = wavPath;
-                savedAnything = true;
+                if (!ExportSamplesToFile(_currentSamples!, _currentSampleRate, audioPath, audioFormat))
+                    return false;
+
+                _currentFilePath = audioPath;
+                exportedAnything = true;
             }
 
-            // 2) Video mit Ton speichern?
+            // 2) Video mit bearbeitetem Ton exportieren?
             if (choice == Mp4SaveChoice.VideoWithAudio || choice == Mp4SaveChoice.Both)
             {
                 if (!TryChooseMp4Path(out string mp4Path))
-                    return;
+                    return false;
 
-                ExportMp4WithEditedAudio(mp4Path);
-                savedAnything = true;
+                try
+                {
+                    ExportMp4WithEditedAudio(mp4Path);
+                    exportedAnything = true;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this,
+                        "Fehler beim Video-Export:\n" + ex.Message,
+                        "Export",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return false;
+                }
             }
 
-            if (savedAnything)
+            if (exportedAnything)
             {
                 _isDirty = false;
                 UpdateWindowTitle();
             }
+
+            return exportedAnything;
         }
         private bool TryChooseWavPath(out string path)
         {
@@ -1910,7 +1916,8 @@ namespace MinimalSoundEditor
 
             // 1) Edited Audio -> Temp WAV
             string tempWav = Path.Combine(Path.GetTempPath(), "mse_audio_" + Guid.NewGuid().ToString("N") + ".wav");
-            ExportSamplesToFile(_currentSamples, _currentSampleRate, tempWav, AudioExportFormat.Wav);
+            if (!ExportSamplesToFile(_currentSamples, _currentSampleRate, tempWav, AudioExportFormat.Wav))
+                throw new InvalidOperationException("Temporäre Audiodatei konnte nicht erzeugt werden.");
 
             try
             {

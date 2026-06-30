@@ -94,7 +94,7 @@ namespace MinimalSoundEditor
             // 
             // dateiToolStripMenuItem
             // 
-            dateiToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { miFileOpen, toolStripSeparator1, miFileSave, miFileSaveAs, toolStripSeparator2, miFileExportSel, toolStripSeparator3, miFileExit });
+            dateiToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { miFileOpen, toolStripSeparator1, miFileExportSel, toolStripSeparator3, miFileExit });
             dateiToolStripMenuItem.Name = "dateiToolStripMenuItem";
             dateiToolStripMenuItem.Size = new Size(46, 20);
             dateiToolStripMenuItem.Text = "Datei";
@@ -140,10 +140,10 @@ namespace MinimalSoundEditor
             // 
             miFileExportSel.Image = Resource1.icon_export;
             miFileExportSel.Name = "miFileExportSel";
-            miFileExportSel.ShortcutKeys = Keys.Control | Keys.Shift | Keys.E;
+            miFileExportSel.ShortcutKeys = Keys.Control | Keys.E;
             miFileExportSel.Size = new Size(253, 22);
-            miFileExportSel.Text = "Auswahl exportieren";
-            miFileExportSel.Click += ExportSelectionAs;
+            miFileExportSel.Text = "Export...";
+            miFileExportSel.Click += ExportCommand;
             // 
             // toolStripSeparator3
             // 
@@ -191,8 +191,6 @@ namespace MinimalSoundEditor
             _topPanel.Controls.Add(_btnTrim);
             _topPanel.Controls.Add(_btnCompress);
             _topPanel.Controls.Add(_btnExport);
-            _topPanel.Controls.Add(_btnSaveAs);
-            _topPanel.Controls.Add(_btnSave);
             _topPanel.Controls.Add(_chkLoop);
             _topPanel.Controls.Add(_lblInfo);
             _topPanel.Controls.Add(_btnTheme);
@@ -213,7 +211,7 @@ namespace MinimalSoundEditor
             _btnVideoPreview.BackgroundImageLayout = ImageLayout.Stretch;
             _btnVideoPreview.FlatAppearance.BorderSize = 0;
             _btnVideoPreview.FlatStyle = FlatStyle.Flat;
-            _btnVideoPreview.Location = new Point(171, 8);
+            _btnVideoPreview.Location = new Point(95, 8);
             _btnVideoPreview.Name = "_btnVideoPreview";
             _btnVideoPreview.Size = new Size(32, 32);
             _btnVideoPreview.TabIndex = 17;
@@ -229,7 +227,7 @@ namespace MinimalSoundEditor
             _chkAutoFollow.FlatAppearance.CheckedBackColor = Color.MediumPurple;
             _chkAutoFollow.FlatAppearance.MouseOverBackColor = Color.FromArgb(255, 192, 192);
             _chkAutoFollow.FlatStyle = FlatStyle.Flat;
-            _chkAutoFollow.Location = new Point(343, 6);
+            _chkAutoFollow.Location = new Point(267, 6);
             _chkAutoFollow.Name = "_chkAutoFollow";
             _chkAutoFollow.Size = new Size(32, 32);
             _chkAutoFollow.TabIndex = 16;
@@ -241,7 +239,7 @@ namespace MinimalSoundEditor
             _btnNormalize.BackgroundImageLayout = ImageLayout.Stretch;
             _btnNormalize.FlatAppearance.BorderSize = 0;
             _btnNormalize.FlatStyle = FlatStyle.Flat;
-            _btnNormalize.Location = new Point(569, 6);
+            _btnNormalize.Location = new Point(493, 6);
             _btnNormalize.Name = "_btnNormalize";
             _btnNormalize.Size = new Size(32, 32);
             _btnNormalize.TabIndex = 15;
@@ -254,7 +252,7 @@ namespace MinimalSoundEditor
             _btnFadeOut.BackgroundImageLayout = ImageLayout.Stretch;
             _btnFadeOut.FlatAppearance.BorderSize = 0;
             _btnFadeOut.FlatStyle = FlatStyle.Flat;
-            _btnFadeOut.Location = new Point(683, 6);
+            _btnFadeOut.Location = new Point(607, 6);
             _btnFadeOut.Name = "_btnFadeOut";
             _btnFadeOut.Size = new Size(32, 32);
             _btnFadeOut.TabIndex = 14;
@@ -267,7 +265,7 @@ namespace MinimalSoundEditor
             _btnFadeIn.BackgroundImageLayout = ImageLayout.Stretch;
             _btnFadeIn.FlatAppearance.BorderSize = 0;
             _btnFadeIn.FlatStyle = FlatStyle.Flat;
-            _btnFadeIn.Location = new Point(645, 6);
+            _btnFadeIn.Location = new Point(569, 6);
             _btnFadeIn.Name = "_btnFadeIn";
             _btnFadeIn.Size = new Size(32, 32);
             _btnFadeIn.TabIndex = 13;
@@ -280,7 +278,7 @@ namespace MinimalSoundEditor
             _btnTrim.BackgroundImageLayout = ImageLayout.Stretch;
             _btnTrim.FlatAppearance.BorderSize = 0;
             _btnTrim.FlatStyle = FlatStyle.Flat;
-            _btnTrim.Location = new Point(607, 6);
+            _btnTrim.Location = new Point(531, 6);
             _btnTrim.Name = "_btnTrim";
             _btnTrim.Size = new Size(32, 32);
             _btnTrim.TabIndex = 12;
@@ -293,7 +291,7 @@ namespace MinimalSoundEditor
             _btnCompress.BackgroundImageLayout = ImageLayout.Stretch;
             _btnCompress.FlatAppearance.BorderSize = 0;
             _btnCompress.FlatStyle = FlatStyle.Flat;
-            _btnCompress.Location = new Point(531, 6);
+            _btnCompress.Location = new Point(455, 6);
             _btnCompress.Name = "_btnCompress";
             _btnCompress.Size = new Size(32, 32);
             _btnCompress.TabIndex = 11;
@@ -306,7 +304,7 @@ namespace MinimalSoundEditor
             _btnExport.BackgroundImageLayout = ImageLayout.Stretch;
             _btnExport.FlatAppearance.BorderSize = 0;
             _btnExport.FlatStyle = FlatStyle.Flat;
-            _btnExport.Location = new Point(124, 6);
+            _btnExport.Location = new Point(48, 6);
             _btnExport.Name = "_btnExport";
             _btnExport.Size = new Size(32, 32);
             _btnExport.TabIndex = 10;
@@ -348,7 +346,7 @@ namespace MinimalSoundEditor
             _chkLoop.FlatAppearance.CheckedBackColor = Color.MediumPurple;
             _chkLoop.FlatAppearance.MouseOverBackColor = Color.FromArgb(255, 192, 192);
             _chkLoop.FlatStyle = FlatStyle.Flat;
-            _chkLoop.Location = new Point(477, 6);
+            _chkLoop.Location = new Point(401, 6);
             _chkLoop.Name = "_chkLoop";
             _chkLoop.Size = new Size(32, 32);
             _chkLoop.TabIndex = 7;
@@ -357,7 +355,7 @@ namespace MinimalSoundEditor
             // _lblInfo
             // 
             _lblInfo.AutoSize = true;
-            _lblInfo.Location = new Point(736, 15);
+            _lblInfo.Location = new Point(660, 15);
             _lblInfo.Name = "_lblInfo";
             _lblInfo.Size = new Size(127, 15);
             _lblInfo.TabIndex = 6;
@@ -383,7 +381,7 @@ namespace MinimalSoundEditor
             _btnStop.BackgroundImageLayout = ImageLayout.Stretch;
             _btnStop.FlatAppearance.BorderSize = 0;
             _btnStop.FlatStyle = FlatStyle.Flat;
-            _btnStop.Location = new Point(435, 6);
+            _btnStop.Location = new Point(359, 6);
             _btnStop.Name = "_btnStop";
             _btnStop.Size = new Size(32, 32);
             _btnStop.TabIndex = 4;
@@ -396,7 +394,7 @@ namespace MinimalSoundEditor
             _btnPlay.BackgroundImageLayout = ImageLayout.Stretch;
             _btnPlay.FlatAppearance.BorderSize = 0;
             _btnPlay.FlatStyle = FlatStyle.Flat;
-            _btnPlay.Location = new Point(393, 6);
+            _btnPlay.Location = new Point(317, 6);
             _btnPlay.Name = "_btnPlay";
             _btnPlay.Size = new Size(32, 32);
             _btnPlay.TabIndex = 3;
@@ -409,7 +407,7 @@ namespace MinimalSoundEditor
             _btnUndo.BackgroundImageLayout = ImageLayout.Stretch;
             _btnUndo.FlatAppearance.BorderSize = 0;
             _btnUndo.FlatStyle = FlatStyle.Flat;
-            _btnUndo.Location = new Point(305, 6);
+            _btnUndo.Location = new Point(229, 6);
             _btnUndo.Name = "_btnUndo";
             _btnUndo.Size = new Size(32, 32);
             _btnUndo.TabIndex = 2;
@@ -422,7 +420,7 @@ namespace MinimalSoundEditor
             _btnDeleteSelection.BackgroundImageLayout = ImageLayout.Stretch;
             _btnDeleteSelection.FlatAppearance.BorderSize = 0;
             _btnDeleteSelection.FlatStyle = FlatStyle.Flat;
-            _btnDeleteSelection.Location = new Point(263, 6);
+            _btnDeleteSelection.Location = new Point(187, 6);
             _btnDeleteSelection.Name = "_btnDeleteSelection";
             _btnDeleteSelection.Size = new Size(32, 32);
             _btnDeleteSelection.TabIndex = 1;
@@ -532,7 +530,7 @@ namespace MinimalSoundEditor
             BtnBatch.BackgroundImageLayout = ImageLayout.Stretch;
             BtnBatch.FlatAppearance.BorderSize = 0;
             BtnBatch.FlatStyle = FlatStyle.Flat;
-            BtnBatch.Location = new Point(209, 8);
+            BtnBatch.Location = new Point(133, 8);
             BtnBatch.Name = "BtnBatch";
             BtnBatch.Size = new Size(32, 32);
             BtnBatch.TabIndex = 18;
