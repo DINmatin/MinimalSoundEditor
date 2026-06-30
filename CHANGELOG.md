@@ -21,3 +21,7 @@ Das Format orientiert sich an „Keep a Changelog“ und die Versionierung an Se
 - Video-Vorschau und FFmpeg-gestützte Medienfunktionen
 - textbasierte Menüoberfläche ohne Symbolleiste
 - Release-Skripte, portable ZIP und Inno-Setup-Installer
+- eigenes Anwendungs- und Installer-Symbol
+- GitHub-Hero-Bild für die Projektseite
+- systemweite Installation unter `Program Files`
+- beschreibbare Theme-Einstellungen unter `%AppData%\MinimalSoundEditor`

@@ -13,6 +13,9 @@
 - [ ] `scripts\build-release.cmd 1.0.0` läuft ohne Fehler
 - [ ] portable ZIP startet auf einem Rechner ohne installiertes .NET SDK
 - [ ] Installer installiert und deinstalliert sauber
+- [ ] Installer verwendet `C:\Program Files\Minimal Sound Editor`
+- [ ] EXE, Hauptfenster, Setup und Verknüpfungen zeigen das Anwendungssymbol
+- [ ] Themes lassen sich trotz Installation unter `Program Files` speichern
 - [ ] Startmenü- und optionale Desktop-Verknüpfung funktionieren
 
 ## Funktionstest

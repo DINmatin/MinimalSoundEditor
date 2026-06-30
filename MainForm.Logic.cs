@@ -1771,11 +1771,32 @@ namespace MinimalSoundEditor
         // war vorher private
         public static string GetThemeDefaultsFilePath()
         {
-            var exeDir = Path.GetDirectoryName(Application.ExecutablePath);
-            if (string.IsNullOrEmpty(exeDir))
-                exeDir = Environment.CurrentDirectory;
+            var settingsDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "MinimalSoundEditor");
 
-            return Path.Combine(exeDir, "themes.json");
+            Directory.CreateDirectory(settingsDir);
+            string settingsPath = Path.Combine(settingsDir, "themes.json");
+
+            // Einmalige Migration aus alten portablen/per-user Installationen.
+            string legacyPath = Path.Combine(AppContext.BaseDirectory, "themes.json");
+            if (!File.Exists(settingsPath) && File.Exists(legacyPath))
+            {
+                try
+                {
+                    File.Copy(legacyPath, settingsPath, overwrite: false);
+                }
+                catch (IOException)
+                {
+                    // Falls parallel bereits eine Datei angelegt wurde, verwenden wir diese.
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Die App bleibt auch ohne Migration benutzbar.
+                }
+            }
+
+            return settingsPath;
         }
 
         // war vorher private – jetzt z.B. internal oder public

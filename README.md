@@ -1,5 +1,9 @@
 # MinimalSoundEditor
 
+<p align="center">
+  <img src="assets/minimalsoundeditor_hero.png" alt="Minimal Sound Editor" width="100%">
+</p>
+
 Ein kompakter Audio-Editor für Windows, geschrieben in C# mit .NET WinForms.
 Der Schwerpunkt liegt auf schnellem Schneiden, einfachen Bearbeitungen und einer kleinen ASIO-Aufnahmelösung ohne überladene DAW-Oberfläche.
 
@@ -35,7 +39,7 @@ Für normale Nutzer sind zwei Pakete vorgesehen:
 - `MinimalSoundEditor_Setup_1.0.0.exe` – Installer
 - `MinimalSoundEditor_Portable_1.0.0_win-x64.zip` – portable Version
 
-Nach der Installation startet das Programm über das Startmenü. In der portablen Version genügt ein Doppelklick auf `MinimalSoundEditor.exe`.
+Der Installer benötigt Administratorrechte und installiert standardmäßig nach `C:\Program Files\Minimal Sound Editor`. Danach startet das Programm über das Startmenü. In der portablen Version genügt ein Doppelklick auf `MinimalSoundEditor.exe`.
 
 ## Bedienung
 

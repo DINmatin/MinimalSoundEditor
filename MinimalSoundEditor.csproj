@@ -18,6 +18,7 @@
     <InformationalVersion>1.0.0</InformationalVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <NeutralLanguage>de-DE</NeutralLanguage>
+    <ApplicationIcon>assets\icon_application.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

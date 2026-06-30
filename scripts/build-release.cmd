@@ -109,6 +109,7 @@ copy /Y "%ROOT%\LICENSE" "%PUBLISH%\LICENSE.txt" >nul
 copy /Y "%ROOT%\THIRD_PARTY_NOTICES.md" "%PUBLISH%\THIRD_PARTY_NOTICES.md" >nul
 copy /Y "%TEMP%\mse_ffmpeg_version.txt" "%PUBLISH%\FFMPEG_BUILD_INFO.txt" >nul
 xcopy /E /I /Y "%ROOT%\third-party-licenses" "%PUBLISH%\third-party-licenses" >nul
+xcopy /E /I /Y "%ROOT%\assets" "%PUBLISH%\assets" >nul
 
 echo.
 echo === Portable ZIP ===

@@ -39,10 +39,25 @@ namespace MinimalSoundEditor
             Cancel
         }
 
+        private void ApplyApplicationIcon()
+        {
+            try
+            {
+                using Icon? executableIcon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+                if (executableIcon != null)
+                    Icon = (Icon)executableIcon.Clone();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Application icon could not be loaded: {ex.Message}");
+            }
+        }
+
         public MainForm()
         {
             // 1) Designer-Init
             InitializeComponent();
+            ApplyApplicationIcon();
 
             // 2) Icon-Leiste entfernen und alle Befehle ins Textmenue verschieben
             BuildMenuOnlyUi();
