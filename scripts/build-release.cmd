@@ -122,10 +122,32 @@ echo === Inno Setup Installer ===
 "%ISCC%" /DMyAppVersion=%VERSION% "%ISS%"
 if errorlevel 1 exit /b 1
 
+set "SETUP=%INSTALLER%\MinimalSoundEditor_Setup_%VERSION%.exe"
+set "CHECKSUMS=%ARTIFACTS%\SHA256SUMS.txt"
+
+if not exist "%SETUP%" (
+    echo ERROR: Installer wurde nicht erzeugt: "%SETUP%"
+    exit /b 1
+)
+
+echo.
+echo === SHA-256-Pruefsummen ===
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$files=@('%SETUP%','%ZIP%'); $lines=foreach($file in $files){ $hash=(Get-FileHash -Algorithm SHA256 -LiteralPath $file).Hash.ToLowerInvariant(); '{0}  {1}' -f $hash,[IO.Path]::GetFileName($file) }; Set-Content -LiteralPath '%CHECKSUMS%' -Value $lines -Encoding ascii"
+if errorlevel 1 exit /b 1
+
+if not exist "%CHECKSUMS%" (
+    echo ERROR: SHA256SUMS.txt wurde nicht erzeugt.
+    exit /b 1
+)
+
+type "%CHECKSUMS%"
+
 echo.
 echo ============================================================
 echo Release erfolgreich erstellt:
-echo   Installer: "%INSTALLER%\MinimalSoundEditor_Setup_%VERSION%.exe"
-echo   Portable:  "%ZIP%"
+echo   Installer:  "%SETUP%"
+echo   Portable:   "%ZIP%"
+echo   Pruefsummen: "%CHECKSUMS%"
 echo ============================================================
 exit /b 0

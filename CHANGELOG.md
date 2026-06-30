@@ -19,9 +19,17 @@ Das Format orientiert sich an „Keep a Changelog“ und die Versionierung an Se
 - ASIO-Treiber-, Eingang- und Samplerate-Auswahl
 - Stapelverarbeitung
 - Video-Vorschau und FFmpeg-gestützte Medienfunktionen
-- textbasierte Menüoberfläche ohne Symbolleiste
+- textbasierte Menüoberfläche ohne sichtbare Symbolleiste
 - Release-Skripte, portable ZIP und Inno-Setup-Installer
 - eigenes Anwendungs- und Installer-Symbol
 - GitHub-Hero-Bild für die Projektseite
 - systemweite Installation unter `Program Files`
 - beschreibbare Theme-Einstellungen unter `%AppData%\MinimalSoundEditor`
+- automatische SHA-256-Prüfsummen für Installer und portable ZIP
+
+### Dokumentation
+
+- öffentliche README mit Download-, Build- und Bedienhinweisen
+- Release-Checkliste und vorbereitete Release Notes
+- Architektur- und Workflow-Kommentare in den zentralen C#-Dateien
+- Drittanbieter- und FFmpeg-Lizenzhinweise
